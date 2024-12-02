@@ -54,7 +54,11 @@ var taskMutex sync.Mutex
 func (ds *CronService) Task() {
 	taskMutex.Lock()
 	log.Printf("Cron task started at %v\n", time.Now())
-	installedRepos := pluginmanager.Updater()
+	installedRepos, err := pluginmanager.Updater()
+	if err != nil {
+		log.Printf("Error updating plugins: %v\n", err)
+		return
+	}
 
 	newPlugins, err := connection.GeneratePlugins(installedRepos)
 	if err != nil {

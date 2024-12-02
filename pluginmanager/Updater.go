@@ -10,8 +10,11 @@ import (
 
 const PluginsPath = "./plugins/"
 
-func Updater() []orms.SoftwareSourceCode {
-	scss := connection.GetSoftwareSourceCodes()
+func Updater() ([]orms.SoftwareSourceCode, error) {
+	scss, err := connection.GetSoftwareSourceCodes()
+	if err != nil {
+		return nil, err
+	}
 
 	log.Printf("Found %d software source codes\n", len(scss))
 
@@ -20,9 +23,9 @@ func Updater() []orms.SoftwareSourceCode {
 
 	switch VersionType(versionType) {
 	case tag:
-		return installAndUpdate(scss, false)
+		return installAndUpdate(scss, false), nil
 	default: // branch
-		return installAndUpdate(scss, true)
+		return installAndUpdate(scss, true), nil
 	}
 }
 
