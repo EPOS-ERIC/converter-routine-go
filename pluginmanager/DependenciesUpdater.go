@@ -18,12 +18,12 @@ func UpdateDependencies(ssc orms.SoftwareSourceCode) error {
 		return fmt.Errorf("error getting programming language for SoftwareSourceCode with instanceId %s: %w", ssc.Instance_id, err)
 	}
 
-	log.Printf("Updating dependencies for SoftwareSourceCode %s...", ssc.Instance_id)
+	// log.Printf("Updating dependencies for SoftwareSourceCode %s...", ssc.Instance_id)
 
 	switch lang {
 	case "Go", "Java":
 		// no dependencies handling for java and go plugins
-		log.Printf("\tDONE: No dependencies to update")
+		// log.Printf("\tDONE: No dependencies to update")
 		return nil
 	case "Python":
 		return handlePyhonDependencies(ssc)
@@ -53,7 +53,7 @@ func handlePyhonDependencies(ssc orms.SoftwareSourceCode) error {
 		return fmt.Errorf("error creating venv environment: %w", err)
 	}
 
-	log.Println("\tPython venv set up correctly")
+	// log.Println("\tPython venv set up correctly")
 
 	// Execute the shell command
 	cmd = exec.Command("venv/bin/pip", "install", "-r", "requirements.txt")
@@ -63,7 +63,7 @@ func handlePyhonDependencies(ssc orms.SoftwareSourceCode) error {
 		log.Fatalf("\tError installing dependencies: %v", err)
 	}
 
-	log.Println("\tPython dependencies installed successfully")
+	// log.Println("\tPython dependencies installed successfully")
 
 	return nil
 }
