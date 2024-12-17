@@ -40,7 +40,7 @@ func CloneOrPull(sscs []orms.SoftwareSourceCode, branch bool) []orms.SoftwareSou
 
 		// Check if the repository directory exists
 		if _, err := os.Stat(repoPath); os.IsNotExist(err) {
-			log.Printf("Repository %v does not exist, cloning...\n", obj.Uid)
+			log.Printf("Repository %v does not exist, cloning...", obj.Uid)
 			// If the repository does not exist, clone it
 			err = CloneRepository(obj, cloneOptions)
 			// If there was an error cloning

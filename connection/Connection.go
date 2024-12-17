@@ -78,6 +78,9 @@ func connect(conn string) (*pg.DB, error) {
 // If it's a single host URL (no commas), it returns singleHostConn as the original URL and an empty multiHostsConns slice.
 // If it's a multi-host URL (commas in the host), it returns singleHostConn as "" and multiHostsConns as the parsed multiple host URLs.
 func parsePostgresURL(connStr string) (singleHostConn string, multiHostsConns []string, err error) {
+	// if the string contains jdbc: just remove it
+	connStr = strings.Replace(connStr, "jdbc:", "", 1)
+
 	parsed, err := url.Parse(connStr)
 	if err != nil {
 		return "", nil, err
