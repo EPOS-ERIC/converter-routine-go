@@ -55,15 +55,10 @@ func healthCheck(c *gin.Context) {
 }
 func health(c *gin.Context) error {
 	// Check the connection to the db
-	db, err := connection.Connect()
-	if err != nil {
-		return fmt.Errorf("error getting database connection string")
-	}
-	err = db.Ping(c)
+	_, err := connection.Connect()
 	if err != nil {
 		return fmt.Errorf("can't connect to database")
 	}
 
 	return nil
 }
-

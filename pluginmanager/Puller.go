@@ -4,7 +4,6 @@ import (
 	"errors"
 	"github.com/epos-eu/converter-routine/orms"
 	"gopkg.in/src-d/go-git.v4"
-	"log"
 )
 
 func PullRepository(obj orms.SoftwareSourceCode, options git.PullOptions) error {
@@ -24,7 +23,7 @@ func PullRepository(obj orms.SoftwareSourceCode, options git.PullOptions) error 
 	err = w.Pull(&options)
 	if err != nil {
 		if errors.Is(err, git.NoErrAlreadyUpToDate) {
-			log.Println("Repository is already up-to-date")
+			// log.Println("Already up to date")
 		} else {
 			return err
 		}

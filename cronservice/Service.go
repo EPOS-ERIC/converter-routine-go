@@ -53,7 +53,10 @@ var taskMutex sync.Mutex
 // periodic Task
 func (ds *CronService) Task() {
 	taskMutex.Lock()
+	defer taskMutex.Unlock()
+
 	log.Printf("Cron task started at %v\n", time.Now())
+
 	installedRepos, err := pluginmanager.Updater()
 	if err != nil {
 		log.Printf("Error updating plugins: %v\n", err)
@@ -74,8 +77,6 @@ func (ds *CronService) Task() {
 		} else {
 			log.Println("Successfully inserted new plugins")
 		}
-	} else {
-		log.Println("Plugins up to date")
 	}
 
 	newPluginsRelations, err := connection.GeneratePluginsRelations()
@@ -92,10 +93,7 @@ func (ds *CronService) Task() {
 		} else {
 			log.Println("Successfully inserted new plugin relations")
 		}
-	} else {
-		log.Println("Plugin relations up to date")
 	}
 
 	log.Printf("Cron task ended at %v\n", time.Now())
-	taskMutex.Unlock()
 }
