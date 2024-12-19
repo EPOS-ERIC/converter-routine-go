@@ -1,104 +1,108 @@
 package orms
 
 type SoftwareApplication struct {
-	tableName       struct{} `pg:"softwareapplication,alias:softwareapplication"`
-	Instance_id     string
-	Meta_id         string
-	Uid             string
+	tableName       struct{} `gorm:"softwareapplication,alias:softwareapplication"`
+	InstanceID      string   `gorm:"column:instance_id"`
+	MetaID          string   `gorm:"column:meta_id"`
+	UID             string   `gorm:"column:uid"`
 	Name            string
 	Description     string
-	Licenseurl      string
-	Downloadurl     string
-	Softwareversion string
+	LicenseURL      string `gorm:"column:licenseurl"`
+	DownloadURL     string `gorm:"column:downloadurl"`
+	SoftwareVersion string `gorm:"column:softwareversion"`
 	Keywords        string
 	Requirements    string
 	State           string
 }
 
-func (s *SoftwareApplication) GetInstance_id() string {
-	return s.Instance_id
+func (s *SoftwareApplication) GetInstanceID() string {
+	return s.InstanceID
 }
 
-func (s *SoftwareApplication) SetInstance_id(Instance_id string) {
-	s.Instance_id = Instance_id
+func (s *SoftwareApplication) SetInstanceID(instanceID string) {
+	s.InstanceID = instanceID
 }
 
-func (s *SoftwareApplication) GetMeta_id() string {
-	return s.Meta_id
+func (s *SoftwareApplication) GetMetaID() string {
+	return s.MetaID
 }
 
-func (s *SoftwareApplication) SetMeta_id(Meta_id string) {
-	s.Meta_id = Meta_id
+func (s *SoftwareApplication) SetMetaID(metaID string) {
+	s.MetaID = metaID
 }
 
-func (s *SoftwareApplication) GetUid() string {
-	return s.Uid
+func (s *SoftwareApplication) GetUID() string {
+	return s.UID
 }
 
-func (s *SoftwareApplication) SetUid(Uid string) {
-	s.Uid = Uid
+func (s *SoftwareApplication) SetUID(uid string) {
+	s.UID = uid
 }
 
 func (s *SoftwareApplication) GetName() string {
 	return s.Name
 }
 
-func (s *SoftwareApplication) SetName(Name string) {
-	s.Name = Name
+func (s *SoftwareApplication) SetName(name string) {
+	s.Name = name
 }
 
 func (s *SoftwareApplication) GetDescription() string {
 	return s.Description
 }
 
-func (s *SoftwareApplication) SetDescription(Description string) {
-	s.Description = Description
+func (s *SoftwareApplication) SetDescription(description string) {
+	s.Description = description
 }
 
-func (s *SoftwareApplication) GetLicenseurl() string {
-	return s.Licenseurl
+func (s *SoftwareApplication) GetLicenseURL() string {
+	return s.LicenseURL
 }
 
-func (s *SoftwareApplication) SetLicenseurl(Licenseurl string) {
-	s.Licenseurl = Licenseurl
+func (s *SoftwareApplication) SetLicenseURL(licenseURL string) {
+	s.LicenseURL = licenseURL
 }
 
-func (s *SoftwareApplication) GetDownloadurl() string {
-	return s.Downloadurl
+func (s *SoftwareApplication) GetDownloadURL() string {
+	return s.DownloadURL
 }
 
-func (s *SoftwareApplication) SetDownloadurl(Downloadurl string) {
-	s.Downloadurl = Downloadurl
+func (s *SoftwareApplication) SetDownloadURL(downloadURL string) {
+	s.DownloadURL = downloadURL
 }
 
-func (s *SoftwareApplication) GetSoftwareversion() string {
-	return s.Softwareversion
+func (s *SoftwareApplication) GetSoftwareVersion() string {
+	return s.SoftwareVersion
 }
 
-func (s *SoftwareApplication) SetSoftwareversion(Softwareversion string) {
-	s.Softwareversion = Softwareversion
+func (s *SoftwareApplication) SetSoftwareVersion(softwareVersion string) {
+	s.SoftwareVersion = softwareVersion
 }
 
 func (s *SoftwareApplication) GetKeywords() string {
 	return s.Keywords
 }
 
-func (s *SoftwareApplication) SetKeywords(Keywords string) {
-	s.Keywords = Keywords
+func (s *SoftwareApplication) SetKeywords(keywords string) {
+	s.Keywords = keywords
 }
 
 func (s *SoftwareApplication) GetRequirements() string {
 	return s.Requirements
 }
 
-func (s *SoftwareApplication) SetRequirements(Requirements string) {
-	s.Requirements = Requirements
+func (s *SoftwareApplication) SetRequirements(requirements string) {
+	s.Requirements = requirements
 }
 
 func (s *SoftwareApplication) GetState() string {
 	return s.State
 }
 
-func (s *SoftwareApplication) SetState(State string) {
-	s.State = State
+func (s *SoftwareApplication) SetState(state string) {
+	s.State = state
+}
+
+func (SoftwareApplication) TableName() string {
+	return "softwareapplication" // Replace this with your actual table name
 }

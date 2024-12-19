@@ -1,86 +1,89 @@
 package orms
 
 type Plugin struct {
-	tableName               struct{} `pg:"plugin,alias:plugin"`
-	Id                      string
-	Software_source_code_id string
-	Software_application_id string
-	Version                 string
-	Proxy_type              string
-	Runtime                 string
-	Execution               string
-	Installed               bool
-	Enabled                 bool
+	tableName             struct{} `gorm:"plugin,alias:plugin"`
+	Id                    string   `gorm:"primaryKey"`
+	SoftwareSourceCodeID  string   `gorm:"column:software_source_code_id"`
+	SoftwareApplicationID string   `gorm:"column:software_application_id"`
+	Version               string
+	ProxyType             string `gorm:"column:proxy_type"`
+	Runtime               string
+	Execution             string
+	Installed             bool
+	Enabled               bool
 }
 
 func (p *Plugin) GetId() string {
 	return p.Id
 }
 
-func (p *Plugin) SetId(Id string) {
-	p.Id = Id
+func (p *Plugin) SetId(id string) {
+	p.Id = id
 }
 
-func (p *Plugin) GetSoftware_source_code_id() string {
-	return p.Software_source_code_id
+func (p *Plugin) GetSoftwareSourceCodeID() string {
+	return p.SoftwareSourceCodeID
 }
 
-func (p *Plugin) SetSoftware_source_code_id(Software_source_code_id string) {
-	p.Software_source_code_id = Software_source_code_id
+func (p *Plugin) SetSoftwareSourceCodeID(softwareSourceCodeID string) {
+	p.SoftwareSourceCodeID = softwareSourceCodeID
 }
 
-func (p *Plugin) GetSoftware_application_id() string {
-	return p.Software_application_id
+func (p *Plugin) GetSoftwareApplicationID() string {
+	return p.SoftwareApplicationID
 }
 
-func (p *Plugin) SetSoftware_application_id(Software_application_id string) {
-	p.Software_application_id = Software_application_id
+func (p *Plugin) SetSoftwareApplicationID(softwareApplicationID string) {
+	p.SoftwareApplicationID = softwareApplicationID
 }
 
 func (p *Plugin) GetVersion() string {
 	return p.Version
 }
 
-func (p *Plugin) SetVersion(Version string) {
-	p.Version = Version
+func (p *Plugin) SetVersion(version string) {
+	p.Version = version
 }
 
-func (p *Plugin) GetProxy_type() string {
-	return p.Proxy_type
+func (p *Plugin) GetProxyType() string {
+	return p.ProxyType
 }
 
-func (p *Plugin) SetProxy_type(Proxy_type string) {
-	p.Proxy_type = Proxy_type
+func (p *Plugin) SetProxyType(proxyType string) {
+	p.ProxyType = proxyType
 }
 
 func (p *Plugin) GetRuntime() string {
 	return p.Runtime
 }
 
-func (p *Plugin) SetRuntime(Runtime string) {
-	p.Runtime = Runtime
+func (p *Plugin) SetRuntime(runtime string) {
+	p.Runtime = runtime
 }
 
 func (p *Plugin) GetExecution() string {
 	return p.Execution
 }
 
-func (p *Plugin) SetExecution(Execution string) {
-	p.Execution = Execution
+func (p *Plugin) SetExecution(execution string) {
+	p.Execution = execution
 }
 
 func (p *Plugin) GetInstalled() bool {
 	return p.Installed
 }
 
-func (p *Plugin) SetInstalled(Installed bool) {
-	p.Installed = Installed
+func (p *Plugin) SetInstalled(installed bool) {
+	p.Installed = installed
 }
 
 func (p *Plugin) GetEnabled() bool {
 	return p.Enabled
 }
 
-func (p *Plugin) SetEnabled(Enabled bool) {
-	p.Enabled = Enabled
+func (p *Plugin) SetEnabled(enabled bool) {
+	p.Enabled = enabled
+}
+func (Plugin) TableName() string {
+	return "plugin" // Replace this with your actual table name
 }

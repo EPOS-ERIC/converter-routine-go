@@ -38,7 +38,7 @@ func installAndUpdate(sscs []orms.SoftwareSourceCode, branch bool) []orms.Softwa
 		if err != nil {
 			// if there is an error getting the dependencies don't consider the plugin as installed
 			sscs = append(sscs[:i], sscs[i+1:]...)
-			log.Printf("Error while getting dependencies for %v: %v", ssc.Uid, err)
+			log.Printf("Error while getting dependencies for %v: %v", ssc.UID, err)
 		}
 	}
 

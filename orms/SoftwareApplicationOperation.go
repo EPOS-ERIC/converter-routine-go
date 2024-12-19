@@ -1,23 +1,27 @@
 package orms
 
 type SoftwareApplicationOperation struct {
-	tableName                       struct{} `pg:"softwareapplication_operation,alias:softwareapplication_operation"`
-	Instance_operation_id           string
-	Instance_softwareapplication_id string
+	tableName                     struct{} `gorm:"softwareapplication_operation,alias:softwareapplication_operation"`
+	InstanceOperationID           string   `gorm:"column:instance_operation_id"`
+	InstanceSoftwareApplicationID string   `gorm:"column:instance_softwareapplication_id"`
 }
 
-func (s *SoftwareApplicationOperation) GetInstance_operation_id() string {
-	return s.Instance_operation_id
+func (s *SoftwareApplicationOperation) GetInstanceOperationID() string {
+	return s.InstanceOperationID
 }
 
-func (s *SoftwareApplicationOperation) SetInstance_operation_id(Instance_operation_id string) {
-	s.Instance_operation_id = Instance_operation_id
+func (s *SoftwareApplicationOperation) SetInstanceOperationID(instanceOperationID string) {
+	s.InstanceOperationID = instanceOperationID
 }
 
-func (s *SoftwareApplicationOperation) GetInstance_softwareapplication_id() string {
-	return s.Instance_softwareapplication_id
+func (s *SoftwareApplicationOperation) GetInstanceSoftwareApplicationID() string {
+	return s.InstanceSoftwareApplicationID
 }
 
-func (s *SoftwareApplicationOperation) SetInstance_softwareapplication_id(Instance_softwareapplication_id string) {
-	s.Instance_softwareapplication_id = Instance_softwareapplication_id
+func (s *SoftwareApplicationOperation) SetInstanceSoftwareApplicationID(instanceSoftwareApplicationID string) {
+	s.InstanceSoftwareApplicationID = instanceSoftwareApplicationID
+}
+
+func (SoftwareApplicationOperation) TableName() string {
+	return "softwareapplication_operation" // Replace this with your actual table name
 }
