@@ -44,7 +44,7 @@ func serviceInit(cs *cronservice.CronService) {
 }
 
 func healthCheck(c *gin.Context) {
-	err := health(c)
+	err := health()
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Unhealthy: "+err.Error())
 		return
@@ -53,7 +53,7 @@ func healthCheck(c *gin.Context) {
 		return
 	}
 }
-func health(c *gin.Context) error {
+func health() error {
 	// Check the connection to the db
 	_, err := connection.Connect()
 	if err != nil {
