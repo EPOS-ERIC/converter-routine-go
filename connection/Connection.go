@@ -2,50 +2,105 @@ package connection
 
 import (
 	"fmt"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	"gorm.io/gorm/schema"
 	"log"
 	"os"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
+
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+	"gorm.io/gorm/schema"
 )
 
-var hosts []string
-var params = ""
+var (
+	dbs  []*gorm.DB
+	once sync.Once
+)
 
-// get a db to execute queries
+// Connect returns an available database connection from the pool
 func Connect() (*gorm.DB, error) {
-	var err error
-	if hosts == nil && params == "" {
-		hosts, params, err = initializeHosts()
-		if err != nil {
-			return nil, err
-		}
+	var initErr error
+	once.Do(func() {
+		initErr = initializeDbs()
+	})
+	if initErr != nil {
+		return nil, fmt.Errorf("initialization error: %w", initErr)
 	}
 
-	// Attempt to connect to each host
+	if len(dbs) == 0 {
+		return nil, fmt.Errorf("no database connections available")
+	}
+
+	// try each connection in order
+	for _, db := range dbs {
+		sqlDB, err := db.DB()
+		if err != nil {
+			log.Printf("Error getting underlying *sql.DB: %v", err)
+			continue
+		}
+
+		// connection check
+		err = sqlDB.Ping()
+		if err != nil {
+			// log.Printf("Failed to ping database: %v", err)
+			continue
+		}
+
+		return db, nil
+	}
+
+	return nil, fmt.Errorf("all database hosts are unreachable")
+}
+
+// initialize the dbs from the hosts
+func initializeDbs() error {
+	hosts, params, err := initializeHosts()
+	if err != nil {
+		return fmt.Errorf("failed to initialize hosts: %w", err)
+	}
+
+	// GORM logger
+	logConfig := logger.Config{
+		SlowThreshold:             time.Second,
+		LogLevel:                  logger.Error,
+		IgnoreRecordNotFoundError: false,
+	}
+
+	// clear any existing connections
+	dbs = make([]*gorm.DB, 0, len(hosts))
+
+	// create a db for each host
 	for _, host := range hosts {
 		currentDSN := fmt.Sprintf("postgresql://%s/%s", host, params)
-		// log.Printf("Attempting to connect to: %s", host)
+
 		db, err := gorm.Open(postgres.New(postgres.Config{
 			DriverName: "pgx",
 			DSN:        currentDSN,
 		}), &gorm.Config{
+			Logger: logger.New(log.New(os.Stdout, "\r\n", log.LstdFlags), logConfig),
 			NamingStrategy: schema.NamingStrategy{
-				TablePrefix:   "",   // table name prefix
-				SingularTable: true, // use singular table names
+				TablePrefix:   "",
+				SingularTable: true,
 			},
 		})
+
 		if err != nil {
-			// log.Printf("Failed to connect to: %s, error: %v", host, err)
-			// try next host
+			log.Printf("Failed to connect to host %s: %v", host, err)
 			continue
 		}
-		// log.Printf("Successfully connected to: %s", host)
-		return db, nil
+
+		// add to the initialized databases
+		dbs = append(dbs, db)
 	}
-	return nil, fmt.Errorf("error enstablishing connection to db: all hosts are unreachable: %w", err)
+
+	if len(dbs) == 0 {
+		return fmt.Errorf("failed to initialize any database connections")
+	}
+
+	return nil
 }
 
 func initializeHosts() ([]string, string, error) {
