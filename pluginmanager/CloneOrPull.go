@@ -11,11 +11,10 @@ import (
 // CloneOrPull clones or pulls the software source code repositories
 // the branch parameter determines whether to consider the software version as a branch or a tag
 func CloneOrPull(sscs []orms.SoftwareSourceCode, branch bool) []orms.SoftwareSourceCode {
-	installedRepos := make([]orms.SoftwareSourceCode, len(sscs))
-	copy(installedRepos, sscs)
+	installedRepos := make([]orms.SoftwareSourceCode, 0, len(sscs))
 
 	// Iterate over each software source code object
-	for i, obj := range sscs {
+	for _, obj := range sscs {
 		// Determine the reference name based on the provided options
 		var referenceName plumbing.ReferenceName
 		if branch {
@@ -45,9 +44,9 @@ func CloneOrPull(sscs []orms.SoftwareSourceCode, branch bool) []orms.SoftwareSou
 			err = CloneRepository(obj, cloneOptions)
 			// If there was an error cloning
 			if err != nil {
-				// Remove from the installed repos
-				installedRepos = append(installedRepos[:i], installedRepos[i+1:]...)
 				log.Printf("Error while cloning %v: %v", obj.UID, err)
+				// don't add this to the installed repositories
+				continue
 			}
 		} else {
 			// Define checkout options
@@ -66,6 +65,9 @@ func CloneOrPull(sscs []orms.SoftwareSourceCode, branch bool) []orms.SoftwareSou
 				log.Printf("Error pulling: %v\n", err)
 			}
 		}
+
+		// If we get here, it means it was successfully cloned/pulled
+		installedRepos = append(installedRepos, obj)
 	}
 
 	return installedRepos
