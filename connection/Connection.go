@@ -6,7 +6,6 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -15,23 +14,18 @@ import (
 	"gorm.io/gorm/schema"
 )
 
-var (
-	dbs  []*gorm.DB
-	once sync.Once
-)
+var dbs []*gorm.DB
 
 // Connect returns an available database connection from the pool
 func Connect() (*gorm.DB, error) {
-	var initErr error
-	once.Do(func() {
-		initErr = initializeDbs()
-	})
-	if initErr != nil {
-		return nil, fmt.Errorf("initialization error: %w", initErr)
-	}
-
 	if len(dbs) == 0 {
-		return nil, fmt.Errorf("no database connections available")
+		err := initializeDbs()
+		if err != nil {
+			return nil, fmt.Errorf("initialization error: %w", err)
+		}
+		if len(dbs) == 0 {
+			return nil, fmt.Errorf("no database connections available")
+		}
 	}
 
 	// try each connection in order
