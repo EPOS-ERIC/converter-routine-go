@@ -64,6 +64,19 @@ func GetPlugins() ([]orms.Plugin, error) {
 	return listOfPlugins, nil
 }
 
+func GetPluginById(id string) (orms.Plugin, error) {
+	db, err := Connect()
+	if err != nil {
+		return orms.Plugin{}, err
+	}
+	var plugin orms.Plugin
+	err = db.Find(&plugin, "id = ?", id).Error
+	if err != nil {
+		return orms.Plugin{}, err
+	}
+	return plugin, nil
+}
+
 func GetPluginRelations() ([]orms.PluginRelations, error) {
 	db, err := Connect()
 	if err != nil {
@@ -84,8 +97,8 @@ func SetPlugins(ph []orms.Plugin) error {
 		return err
 	}
 
-	//truncate
-	err = db.Exec("TRUNCATE plugin CASCADE").Error //c("TRUNCATE plugin CASCADE", nil)
+	// truncate
+	err = db.Exec("TRUNCATE plugin CASCADE").Error // c("TRUNCATE plugin CASCADE", nil)
 	if err != nil {
 		return err
 	}
@@ -103,7 +116,7 @@ func SetPluginsRelations(ph []orms.PluginRelations) error {
 		return err
 	}
 
-	//truncate
+	// truncate
 	err = db.Exec("TRUNCATE plugin_relations CASCADE").Error
 	if err != nil {
 		return err
