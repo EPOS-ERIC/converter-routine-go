@@ -7,7 +7,7 @@ import (
 
 func Checkout(obj orms.SoftwareSourceCode, options git.CheckoutOptions) error {
 	// Open the given repository
-	r, err := git.PlainOpen(PluginsPath + obj.GetInstance_id())
+	r, err := git.PlainOpen(PluginsPath + obj.GetInstanceID())
 	if err != nil {
 		return err
 	}

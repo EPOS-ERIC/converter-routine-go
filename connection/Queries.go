@@ -13,10 +13,9 @@ func GetSoftwareSourceCodes() ([]orms.SoftwareSourceCode, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
 	// Select all users.
 	var listOfSoftwareSourceCodes []orms.SoftwareSourceCode
-	err = db.Model(&listOfSoftwareSourceCodes).Where("state = ?", "PUBLISHED").Where("uid ILIKE '%' || ? || '%'", "plugin").Select()
+	err = db.Model(orms.SoftwareSourceCode{}).Where("state = ?", "PUBLISHED").Where("uid ILIKE '%' || ? || '%'", "plugin").Find(&listOfSoftwareSourceCodes).Error
 	if err != nil {
 		return nil, err
 	}
@@ -28,10 +27,9 @@ func GetSoftwareApplications() ([]orms.SoftwareApplication, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
 	// Select all users.
 	var listOfSoftwareApplications []orms.SoftwareApplication
-	err = db.Model(&listOfSoftwareApplications).Where("state = ?", "PUBLISHED").Where("uid ILIKE '%' || ? || '%'", "plugin").Select()
+	err = db.Model(&listOfSoftwareApplications).Where("state = ?", "PUBLISHED").Where("uid ILIKE '%' || ? || '%'", "plugin").Find(&listOfSoftwareApplications).Error
 	if err != nil {
 		return nil, err
 	}
@@ -43,10 +41,9 @@ func GetSoftwareApplicationsOperations() ([]orms.SoftwareApplicationOperation, e
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
 	// Select all users.
 	var listOfSoftwareApplicationsOperations []orms.SoftwareApplicationOperation
-	err = db.Model(&listOfSoftwareApplicationsOperations).Select()
+	err = db.Model(&listOfSoftwareApplicationsOperations).Find(&listOfSoftwareApplicationsOperations).Error
 	if err != nil {
 		return nil, err
 	}
@@ -58,14 +55,26 @@ func GetPlugins() ([]orms.Plugin, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
 	// Select all users.
 	var listOfPlugins []orms.Plugin
-	err = db.Model(&listOfPlugins).Select()
+	err = db.Model(&listOfPlugins).Find(&listOfPlugins).Error
 	if err != nil {
 		return nil, err
 	}
 	return listOfPlugins, nil
+}
+
+func GetPluginById(id string) (orms.Plugin, error) {
+	db, err := Connect()
+	if err != nil {
+		return orms.Plugin{}, err
+	}
+	var plugin orms.Plugin
+	err = db.Find(&plugin, "id = ?", id).Error
+	if err != nil {
+		return orms.Plugin{}, err
+	}
+	return plugin, nil
 }
 
 func GetPluginRelations() ([]orms.PluginRelations, error) {
@@ -73,10 +82,9 @@ func GetPluginRelations() ([]orms.PluginRelations, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
 	// Select all users.
 	var listOfPluginRelations []orms.PluginRelations
-	err = db.Model(&listOfPluginRelations).Select()
+	err = db.Model(&listOfPluginRelations).Find(&listOfPluginRelations).Error
 	if err != nil {
 		return nil, err
 	}
@@ -88,14 +96,13 @@ func SetPlugins(ph []orms.Plugin) error {
 	if err != nil {
 		return err
 	}
-	defer db.Close()
 
-	//truncate
-	_, err = db.Exec("TRUNCATE plugin CASCADE")
+	// truncate
+	err = db.Exec("TRUNCATE plugin CASCADE").Error // c("TRUNCATE plugin CASCADE", nil)
 	if err != nil {
 		return err
 	}
-	_, err = db.Model(&ph).Insert()
+	err = db.Create(&ph).Error
 	if err != nil {
 		return err
 	}
@@ -108,14 +115,13 @@ func SetPluginsRelations(ph []orms.PluginRelations) error {
 	if err != nil {
 		return err
 	}
-	defer db.Close()
 
-	//truncate
-	_, err = db.Exec("TRUNCATE plugin_relations CASCADE")
+	// truncate
+	err = db.Exec("TRUNCATE plugin_relations CASCADE").Error
 	if err != nil {
 		return err
 	}
-	_, err = db.Model(&ph).Insert()
+	err = db.Create(&ph).Error
 	if err != nil {
 		return err
 	}
@@ -129,16 +135,14 @@ func getNewSoftwareSourceCode() ([]orms.SoftwareSourceCode, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
 
 	var softwareSourceCode []orms.SoftwareSourceCode
 	// Select all plugins that are not in the plugins table (new plugin)
 	err = db.Model(&softwareSourceCode).
-		Join("LEFT JOIN plugin ON softwaresourcecode.instance_id = plugin.software_source_code_id").
+		Joins("LEFT JOIN plugin ON softwaresourcecode.instance_id = plugin.software_source_code_id").
 		Where("plugin.software_source_code_id IS NULL").
 		Where("softwaresourcecode.state = ?", "PUBLISHED").
-		Where("softwaresourcecode.uid ILIKE '%' || ? || '%'", "plugin").
-		Select()
+		Where("softwaresourcecode.uid ILIKE '%' || ? || '%'", "plugin").Find(&softwareSourceCode).Error
 	if err != nil {
 		return nil, err
 	}
@@ -151,9 +155,8 @@ func InsertPlugins(plugins []orms.Plugin) error {
 	if err != nil {
 		return err
 	}
-	defer db.Close()
 
-	_, err = db.Model(&plugins).Insert()
+	err = db.Create(&plugins).Error
 	if err != nil {
 		return err
 	}
@@ -165,9 +168,8 @@ func InsertPluginsRelations(pluginRelations []orms.PluginRelations) error {
 	if err != nil {
 		return err
 	}
-	defer db.Close()
 
-	_, err = db.Model(&pluginRelations).Insert()
+	err = db.Create(&pluginRelations).Error
 	if err != nil {
 		return err
 	}
@@ -183,39 +185,39 @@ func GeneratePluginsRelations() ([]orms.PluginRelations, error) {
 	var listOfPluginsRelations []orms.PluginRelations
 
 	for _, newOperation := range newApplicationsOperations {
-		plugin, err := getPluginFromSoftwareApplicationInstanceId(newOperation.Instance_softwareapplication_id)
+		plugin, err := getPluginFromSoftwareApplicationInstanceId(newOperation.InstanceSoftwareApplicationID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get plugin for software application instance ID %s: %w", newOperation.Instance_softwareapplication_id, err)
+			return nil, fmt.Errorf("failed to get plugin for software application instance ID %s: %w", newOperation.InstanceSoftwareApplicationID, err)
 		}
 
-		softwareApplicationParameters, err := getSoftwareApplicationParameters(newOperation.Instance_softwareapplication_id)
+		softwareApplicationParameters, err := getSoftwareApplicationParameters(newOperation.InstanceSoftwareApplicationID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get software application parameters for instance ID %s: %w", newOperation.Instance_softwareapplication_id, err)
+			return nil, fmt.Errorf("failed to get software application parameters for instance ID %s: %w", newOperation.InstanceSoftwareApplicationID, err)
 		}
 
 		if len(softwareApplicationParameters) != 2 {
-			return nil, fmt.Errorf("unexpected number of software application parameters (%d) for instance ID %s", len(softwareApplicationParameters), newOperation.Instance_softwareapplication_id)
+			return nil, fmt.Errorf("unexpected number of software application parameters (%d) for instance ID %s", len(softwareApplicationParameters), newOperation.InstanceSoftwareApplicationID)
 		}
 
 		var inputFormat, outputFormat string
 		for _, sap := range softwareApplicationParameters {
 			switch sap.Action {
 			case "object":
-				inputFormat = sap.Encodingformat
+				inputFormat = sap.EncodingFormat
 			case "result":
-				outputFormat = sap.Encodingformat
+				outputFormat = sap.EncodingFormat
 			default:
-				return nil, fmt.Errorf("unknown action type '%s' in software application parameters for instance ID %s", sap.Action, newOperation.Instance_softwareapplication_id)
+				return nil, fmt.Errorf("unknown action type '%s' in software application parameters for instance ID %s", sap.Action, newOperation.InstanceSoftwareApplicationID)
 			}
 		}
 
 		pluginRelation := orms.PluginRelations{
-			Id:            uuid.New().String(),
-			Plugin_id:     plugin.Id,
-			Relation_id:   newOperation.Instance_operation_id,
-			Relation_type: "Operation",
-			Input_format:  inputFormat,
-			Output_format: outputFormat,
+			Id:           uuid.New().String(),
+			PluginID:     plugin.Id,
+			RelationID:   newOperation.InstanceOperationID,
+			RelationType: "Operation",
+			InputFormat:  inputFormat,
+			OutputFormat: outputFormat,
 		}
 
 		listOfPluginsRelations = append(listOfPluginsRelations, pluginRelation)
@@ -229,12 +231,10 @@ func getPluginFromSoftwareApplicationInstanceId(softwareApplicationInstanceId st
 	if err != nil {
 		return orms.Plugin{}, err
 	}
-	defer db.Close()
 
 	var plugin orms.Plugin
 	err = db.Model(&plugin).
-		Where("software_application_id = ?", softwareApplicationInstanceId).
-		Select()
+		Where("software_application_id = ?", softwareApplicationInstanceId).Find(&plugin).Error
 	if err != nil {
 		return orms.Plugin{}, err
 	}
@@ -246,12 +246,10 @@ func getSoftwareApplicationParameters(softwareApplicationInstanceId string) ([]o
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
 
 	var sa []orms.SoftwareApplicationParameters
 	err = db.Model(&sa).
-		Where("instance_softwareapplication_id = ?", softwareApplicationInstanceId).
-		Select()
+		Where("instance_softwareapplication_id = ?", softwareApplicationInstanceId).Find(&sa).Error
 	if err != nil {
 		return nil, err
 	}
@@ -263,10 +261,9 @@ func GetSoftwareSourceCodeProgrammingLanguage(ssc string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer db.Close()
 
 	var sscpg orms.SoftwareSourceCodeProgrammingLanguage
-	err = db.Model(&sscpg).Where("instance_softwaresourcecode_id = ?", ssc).Select()
+	err = db.Model(&sscpg).Where("instance_softwaresourcecode_id = ?", ssc).Find(&sscpg).Error
 	if err != nil {
 		return "", err
 	}
@@ -293,7 +290,7 @@ func GeneratePlugins(installedRepos []orms.SoftwareSourceCode) ([]orms.Plugin, e
 		// If the objSoftwareSourceCode is not in the installedRepos, skip it
 		found := false
 		for _, repo := range installedRepos {
-			if objSoftwareSourceCode.Uid == repo.Uid {
+			if objSoftwareSourceCode.UID == repo.UID {
 				found = true
 				break
 			}
@@ -304,27 +301,27 @@ func GeneratePlugins(installedRepos []orms.SoftwareSourceCode) ([]orms.Plugin, e
 
 		// Initialize a new plugin
 		plugin := orms.Plugin{
-			Id:                      uuid.New().String(),
-			Software_source_code_id: objSoftwareSourceCode.Instance_id,
-			Version:                 objSoftwareSourceCode.Softwareversion,
-			Installed:               true,
-			Enabled:                 true,
+			Id:                   uuid.New().String(),
+			SoftwareSourceCodeID: objSoftwareSourceCode.InstanceID,
+			Version:              objSoftwareSourceCode.SoftwareVersion,
+			Installed:            true,
+			Enabled:              true,
 		}
 
 		// For each software application
 		for _, objSoftwareApplication := range listOfSoftwareApplications {
 			// If the software source code and the software application don't match, continue
-			if strings.Replace(objSoftwareSourceCode.Uid, "SoftwareSourceCode/", "", -1) != strings.Replace(objSoftwareApplication.Uid, "SoftwareApplication/", "", -1) {
+			if strings.Replace(objSoftwareSourceCode.UID, "SoftwareSourceCode/", "", -1) != strings.Replace(objSoftwareApplication.UID, "SoftwareApplication/", "", -1) {
 				continue
 			}
 
-			lang, err := GetSoftwareSourceCodeProgrammingLanguage(objSoftwareSourceCode.Instance_id)
+			lang, err := GetSoftwareSourceCodeProgrammingLanguage(objSoftwareSourceCode.InstanceID)
 			if err != nil {
 				return nil, err
 			}
 			// Set the plugin properties
-			plugin.Proxy_type = lang
-			plugin.Software_application_id = objSoftwareApplication.Instance_id
+			plugin.ProxyType = lang
+			plugin.SoftwareApplicationID = objSoftwareApplication.InstanceID
 			plugin.Runtime = lang
 			plugin.Execution = objSoftwareApplication.Requirements
 		}
@@ -341,14 +338,13 @@ func getNewApplicationOperations() ([]orms.SoftwareApplicationOperation, error) 
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
 	// Select all users.
 	var listOfSoftwareApplicationsOperations []orms.SoftwareApplicationOperation
 	// Select all the software application operations that are not in the plugin relations table
 	err = db.Model(&listOfSoftwareApplicationsOperations).
-		Join("LEFT JOIN plugin_relations ON softwareapplication_operation.instance_operation_id = plugin_relations.relation_id").
+		Joins("LEFT JOIN plugin_relations ON softwareapplication_operation.instance_operation_id = plugin_relations.relation_id").
 		Where("plugin_relations.relation_id IS NULL").
-		Select()
+		Find(&listOfSoftwareApplicationsOperations).Error
 	if err != nil {
 		return nil, err
 	}

@@ -13,9 +13,9 @@ import (
 
 // UpdateDependencies installs (or updates) the dependencies for a plugin depending on its runtime.
 func UpdateDependencies(ssc orms.SoftwareSourceCode) error {
-	lang, err := connection.GetSoftwareSourceCodeProgrammingLanguage(ssc.Instance_id)
+	lang, err := connection.GetSoftwareSourceCodeProgrammingLanguage(ssc.InstanceID)
 	if err != nil {
-		return fmt.Errorf("error getting programming language for SoftwareSourceCode with instanceId %s: %w", ssc.Instance_id, err)
+		return fmt.Errorf("error getting programming language for SoftwareSourceCode with instanceId %s: %w", ssc.InstanceID, err)
 	}
 
 	// log.Printf("Updating dependencies for SoftwareSourceCode %s...", ssc.Instance_id)
@@ -34,7 +34,7 @@ func UpdateDependencies(ssc orms.SoftwareSourceCode) error {
 
 // handlePyhonDependencies sets up a Venv python environment and then installs the dependencies
 func handlePyhonDependencies(ssc orms.SoftwareSourceCode) error {
-	path := filepath.Join(PluginsPath, ssc.Instance_id)
+	path := filepath.Join(PluginsPath, ssc.InstanceID)
 
 	_, err := os.Stat(filepath.Join(path, "requirements.txt"))
 	if os.IsNotExist(err) {

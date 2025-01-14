@@ -1,136 +1,146 @@
 package connection
 
 import (
-	"context"
 	"fmt"
-	"net/url"
+	"log"
 	"os"
+	"regexp"
 	"strings"
+	"time"
 
-	"github.com/go-pg/pg/v10"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+	"gorm.io/gorm/schema"
 )
 
-var dbHost1 = ""
-var dbHost2 = ""
+var dbs []*gorm.DB
 
-// get a db to execute queries
-func Connect() (*pg.DB, error) {
-	if dbHost1 == "" && dbHost2 == "" {
-		conn, ok := os.LookupEnv("POSTGRESQL_CONNECTION_STRING")
-		if !ok {
-			return nil, fmt.Errorf("POSTGRESQL_CONNECTION_STRING is not set")
-		}
-
-		// Check if single host or multiple hosts
-		singleHostConn, multiHostsConns, err := parsePostgresURL(conn)
+// Connect returns an available database connection from the pool
+func Connect() (*gorm.DB, error) {
+	if len(dbs) == 0 {
+		err := initializeDbs()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("initialization error: %w", err)
 		}
-
-		if singleHostConn != "" {
-			dbHost1 = singleHostConn
-		} else {
-			switch len(multiHostsConns) {
-			case 0:
-				return nil, fmt.Errorf("no hosts found in connection string")
-			case 1:
-				dbHost1 = multiHostsConns[0]
-			default:
-				dbHost1 = multiHostsConns[0]
-				dbHost2 = multiHostsConns[1]
-			}
+		if len(dbs) == 0 {
+			return nil, fmt.Errorf("no database connections available")
 		}
 	}
 
-	// if we only have one host, just connect directly
-	if dbHost2 == "" {
-		return connect(dbHost1)
-	}
-
-	// if we have two or more hosts try the first, if it fails try the second
-	db, err := connect(dbHost1)
-	if err != nil {
-		db, err = connect(dbHost2)
+	// try each connection in order
+	for _, db := range dbs {
+		sqlDB, err := db.DB()
 		if err != nil {
-			return nil, err
+			log.Printf("Error getting underlying *sql.DB: %v", err)
+			continue
 		}
+
+		// connection check
+		err = sqlDB.Ping()
+		if err != nil {
+			// log.Printf("Failed to ping database: %v", err)
+			continue
+		}
+
+		return db, nil
 	}
 
-	return db, nil
+	return nil, fmt.Errorf("all database hosts are unreachable")
 }
 
-// try to connect to a db, ping it to see if it fails
-func connect(conn string) (*pg.DB, error) {
-	opt, err := pg.ParseURL(conn)
+// initialize the dbs from the hosts
+func initializeDbs() error {
+	hosts, params, err := initializeHosts()
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("failed to initialize hosts: %w", err)
 	}
 
-	db := pg.Connect(opt)
-	if err := db.Ping(context.Background()); err != nil {
-		return nil, err
+	// GORM logger
+	logConfig := logger.Config{
+		SlowThreshold:             time.Second,
+		LogLevel:                  logger.Error,
+		IgnoreRecordNotFoundError: false,
 	}
 
-	return db, nil
-}
+	// clear any existing connections
+	dbs = make([]*gorm.DB, 0, len(hosts))
 
-// parsePostgresURL handles both single and multi-host URLs.
-// If it's a single host URL (no commas), it returns singleHostConn as the original URL and an empty multiHostsConns slice.
-// If it's a multi-host URL (commas in the host), it returns singleHostConn as "" and multiHostsConns as the parsed multiple host URLs.
-func parsePostgresURL(connStr string) (singleHostConn string, multiHostsConns []string, err error) {
-	// if the string contains jdbc: just remove it
-	connStr = strings.Replace(connStr, "jdbc:", "", 1)
-
-	parsed, err := url.Parse(connStr)
-	if err != nil {
-		return "", nil, err
-	}
-
-	if strings.Contains(parsed.Host, ",") {
-		multiHostsConns, err := parseMultiHostPostgresURL(connStr)
-		return "", multiHostsConns, err
-	} else {
-		return connStr, nil, nil
-	}
-}
-
-// postgresql://IP1:PORT1,IP2:PORT2/cerif?user=USER&password=PASSWORD&targetServerType=master&loadBalanceHosts=true
-// to
-// postgresql://${POSTGRESQL_USER}:${POSTGRESQL_PASSWORD}@${PREFIX}${POSTGRESQL_HOST}:${POSTGRESQL_PORT}/${POSTGRES_DB}
-// removing the extra parameters
-func parseMultiHostPostgresURL(connStr string) ([]string, error) {
-	parsed, err := url.Parse(connStr)
-	if err != nil {
-		return nil, err
-	}
-
-	dbPath := parsed.Path
-	q := parsed.Query()
-
-	user := q.Get("user")
-	password := q.Get("password")
-
-	q.Del("user")
-	q.Del("password")
-
-	allHosts := parsed.Host
-	hosts := strings.Split(allHosts, ",")
-	if len(hosts) == 0 {
-		return nil, fmt.Errorf("no hosts found in connection string")
-	}
-
-	var results []string
+	// create a db for each host
 	for _, host := range hosts {
-		newURL := &url.URL{
-			Scheme: parsed.Scheme,
-			User:   url.UserPassword(user, password),
-			Host:   host,
-			Path:   dbPath,
+		currentDSN := fmt.Sprintf("postgresql://%s/%s", host, params)
+
+		db, err := gorm.Open(postgres.New(postgres.Config{
+			DriverName: "pgx",
+			DSN:        currentDSN,
+		}), &gorm.Config{
+			Logger: logger.New(log.New(os.Stdout, "\r\n", log.LstdFlags), logConfig),
+			NamingStrategy: schema.NamingStrategy{
+				TablePrefix:   "",
+				SingularTable: true,
+			},
+		})
+
+		if err != nil {
+			log.Printf("Failed to connect to host %s: %v", host, err)
+			continue
 		}
 
-		results = append(results, newURL.String())
+		// add to the initialized databases
+		dbs = append(dbs, db)
 	}
 
-	return results, nil
+	if len(dbs) == 0 {
+		return fmt.Errorf("failed to initialize any database connections")
+	}
+
+	return nil
+}
+
+func initializeHosts() ([]string, string, error) {
+	dsn, ok := os.LookupEnv("POSTGRESQL_CONNECTION_STRING")
+	log.Println("POSTGRESQL_CONNECTION_STRING:", dsn)
+	if !ok {
+		return nil, "", fmt.Errorf("POSTGRESQL_CONNECTION_STRING is not set")
+	}
+
+	// Remove the "jdbc:" prefix if it exists
+	dsn = strings.Replace(dsn, "jdbc:", "", 1)
+
+	log.Println("Cleaned DSN (jdbc prefix removed):", dsn)
+
+	// Remove unsupported parameters like targetServerType and loadBalanceHosts
+	re := regexp.MustCompile(`(&?(targetServerType|loadBalanceHosts)=[^&]+)`)
+	dsn = re.ReplaceAllString(dsn, "")
+
+	log.Println("Cleaned DSN (unsupported parameters removed):", dsn)
+
+	// Clean up trailing "?" or "&"
+	dsn = regexp.MustCompile(`[?&]$`).ReplaceAllString(dsn, "")
+
+	log.Println("Cleaned DSN (multi-host supported):", dsn)
+
+	// Parse hosts and connection parameters correctly
+	hostStart := strings.Index(dsn, "//")
+	if hostStart == -1 {
+		return nil, "", fmt.Errorf("invalid connection string format: missing '//'")
+	}
+
+	// Extract everything after `//` (hosts and parameters)
+	hostsAndParams := dsn[hostStart+2:]
+	splitIndex := strings.Index(hostsAndParams, "/")
+	if splitIndex == -1 {
+		return nil, "", fmt.Errorf("invalid connection string format: missing '/' after hosts")
+	}
+
+	hosts := hostsAndParams[:splitIndex]
+	params := hostsAndParams[splitIndex+1:]
+
+	hostList := strings.Split(hosts, ",")
+
+	log.Printf("Parsed Hosts: %v", hostList)
+	log.Printf("Connection Parameters: %s", params)
+
+	return hostList, params, nil
 }
 

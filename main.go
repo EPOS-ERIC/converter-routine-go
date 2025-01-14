@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"path"
 
 	"github.com/epos-eu/converter-routine/connection"
 	"github.com/epos-eu/converter-routine/cronservice"
+	"github.com/epos-eu/converter-routine/pluginmanager"
 	"github.com/gin-gonic/gin"
 )
 
@@ -39,12 +42,34 @@ func serviceInit(cs *cronservice.CronService) {
 	// Check health (db connection)
 	r.GET("/health", healthCheck)
 
+	// Delete plugin directory
+	r.GET("/clean/:id", cleanPlugin)
+
 	err := r.Run(":8080")
 	panic(err)
 }
 
+func cleanPlugin(c *gin.Context) {
+	id, ok := c.Params.Get("id")
+	if !ok {
+		c.String(http.StatusBadRequest, "Missing parameter 'id'")
+		return
+	}
+	plugin, err := connection.GetPluginById(id)
+	if err != nil {
+		c.String(http.StatusBadRequest, "No plugin found with id: %v", id)
+		return
+	}
+	err = os.RemoveAll(path.Join(pluginmanager.PluginsPath, plugin.SoftwareSourceCodeID))
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Error cleaning plugin: %v", plugin)
+		return
+	}
+	c.String(http.StatusOK, "Plugin cleaned")
+}
+
 func healthCheck(c *gin.Context) {
-	err := health(c)
+	err := health()
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Unhealthy: "+err.Error())
 		return
@@ -53,7 +78,8 @@ func healthCheck(c *gin.Context) {
 		return
 	}
 }
-func health(c *gin.Context) error {
+
+func health() error {
 	// Check the connection to the db
 	_, err := connection.Connect()
 	if err != nil {

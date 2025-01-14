@@ -1,43 +1,63 @@
 package orms
 
 type PluginRelations struct {
-	tableName     struct{} `pg:"plugin_relations,alias:plugin_relations"`
-	Id            string
-	Plugin_id     string
-	Relation_id   string
-	Relation_type string
-	Input_format  string
-	Output_format string
+	tableName    struct{} `gorm:"plugin_relations,alias:plugin_relations"`
+	Id           string   `gorm:"primaryKey"`
+	PluginID     string   `gorm:"column:plugin_id"`
+	RelationID   string   `gorm:"column:relation_id"`
+	RelationType string   `gorm:"column:relation_type"`
+	InputFormat  string   `gorm:"column:input_format"`
+	OutputFormat string   `gorm:"column:output_format"`
 }
 
 func (p *PluginRelations) GetId() string {
 	return p.Id
 }
 
-func (p *PluginRelations) SetId(Id string) {
-	p.Id = Id
+func (p *PluginRelations) SetId(id string) {
+	p.Id = id
 }
 
-func (p *PluginRelations) GetPlugin_id() string {
-	return p.Plugin_id
+func (p *PluginRelations) GetPluginID() string {
+	return p.PluginID
 }
 
-func (p *PluginRelations) SetPlugin_id(Plugin_id string) {
-	p.Plugin_id = Plugin_id
+func (p *PluginRelations) SetPluginID(pluginID string) {
+	p.PluginID = pluginID
 }
 
-func (p *PluginRelations) GetRelation_id() string {
-	return p.Relation_id
+func (p *PluginRelations) GetRelationID() string {
+	return p.RelationID
 }
 
-func (p *PluginRelations) SetRelation_id(Relation_id string) {
-	p.Relation_id = Relation_id
+func (p *PluginRelations) SetRelationID(relationID string) {
+	p.RelationID = relationID
 }
 
-func (p *PluginRelations) GetRelation_type() string {
-	return p.Relation_type
+func (p *PluginRelations) GetRelationType() string {
+	return p.RelationType
 }
 
-func (p *PluginRelations) SetRelation_type(Relation_type string) {
-	p.Relation_type = Relation_type
+func (p *PluginRelations) SetRelationType(relationType string) {
+	p.RelationType = relationType
+}
+
+func (p *PluginRelations) GetInputFormat() string {
+	return p.InputFormat
+}
+
+func (p *PluginRelations) SetInputFormat(inputFormat string) {
+	p.InputFormat = inputFormat
+}
+
+func (p *PluginRelations) GetOutputFormat() string {
+	return p.OutputFormat
+}
+
+func (p *PluginRelations) SetOutputFormat(outputFormat string) {
+	p.OutputFormat = outputFormat
+}
+
+func (PluginRelations) TableName() string {
+	return "plugin_relations" // Replace this with your actual table name
 }
