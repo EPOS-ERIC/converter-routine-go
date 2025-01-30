@@ -1,31 +1,32 @@
 package pluginmanager
 
 import (
-	"github.com/epos-eu/converter-routine/orms"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
 	"log"
 	"os"
+
+	"github.com/epos-eu/converter-routine/dao/model"
+	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing"
 )
 
 // CloneOrPull clones or pulls the software source code repositories
 // the branch parameter determines whether to consider the software version as a branch or a tag
-func CloneOrPull(sscs []orms.SoftwareSourceCode, branch bool) []orms.SoftwareSourceCode {
-	installedRepos := make([]orms.SoftwareSourceCode, 0, len(sscs))
+func CloneOrPull(sscs []model.Softwaresourcecode, branch bool) []model.Softwaresourcecode {
+	installedRepos := make([]model.Softwaresourcecode, 0, len(sscs))
 
 	// Iterate over each software source code object
 	for _, obj := range sscs {
 		// Determine the reference name based on the provided options
 		var referenceName plumbing.ReferenceName
 		if branch {
-			referenceName = plumbing.NewBranchReferenceName(obj.GetSoftwareVersion())
+			referenceName = plumbing.NewBranchReferenceName(obj.Softwareversion)
 		} else {
-			referenceName = plumbing.NewTagReferenceName(obj.GetSoftwareVersion())
+			referenceName = plumbing.NewTagReferenceName(obj.Softwareversion)
 		}
 
 		// Define clone and pull options
 		cloneOptions := git.CloneOptions{
-			URL:           obj.GetCodeRepository(),
+			URL:           obj.Coderepository,
 			ReferenceName: referenceName,
 		}
 		pullOptions := git.PullOptions{
@@ -35,7 +36,7 @@ func CloneOrPull(sscs []orms.SoftwareSourceCode, branch bool) []orms.SoftwareSou
 		}
 
 		// Construct the repository path using the instance ID
-		repoPath := PluginsPath + obj.GetInstanceID()
+		repoPath := PluginsPath + obj.InstanceID
 
 		// Check if the repository directory exists
 		if _, err := os.Stat(repoPath); os.IsNotExist(err) {

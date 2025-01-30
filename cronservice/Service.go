@@ -2,12 +2,13 @@ package cronservice
 
 import (
 	"context"
-	"github.com/epos-eu/converter-routine/connection"
-	"github.com/epos-eu/converter-routine/pluginmanager"
-	"github.com/robfig/cron/v3"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/epos-eu/converter-routine/connection"
+	"github.com/epos-eu/converter-routine/pluginmanager"
+	"github.com/robfig/cron/v3"
 )
 
 // cronRunner interface for cron

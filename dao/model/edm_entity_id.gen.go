@@ -11,8 +11,3 @@ type EdmEntityID struct {
 	MetaID    string `gorm:"column:meta_id;primaryKey" json:"meta_id"`
 	TableName string `gorm:"column:table_name" json:"table_name"`
 }
-
-// TableName EdmEntityID's table name
-func (*EdmEntityID) TableName() string {
-	return TableNameEdmEntityID
-}

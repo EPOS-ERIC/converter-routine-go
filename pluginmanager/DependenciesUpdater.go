@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 
 	"github.com/epos-eu/converter-routine/connection"
-	"github.com/epos-eu/converter-routine/orms"
+	"github.com/epos-eu/converter-routine/dao/model"
 )
 
 // UpdateDependencies installs (or updates) the dependencies for a plugin depending on its runtime.
-func UpdateDependencies(ssc orms.SoftwareSourceCode) error {
+func UpdateDependencies(ssc model.Softwaresourcecode) error {
 	lang, err := connection.GetSoftwareSourceCodeProgrammingLanguage(ssc.InstanceID)
 	if err != nil {
 		return fmt.Errorf("error getting programming language for SoftwareSourceCode with instanceId %s: %w", ssc.InstanceID, err)
@@ -33,7 +33,7 @@ func UpdateDependencies(ssc orms.SoftwareSourceCode) error {
 }
 
 // handlePyhonDependencies sets up a Venv python environment and then installs the dependencies
-func handlePyhonDependencies(ssc orms.SoftwareSourceCode) error {
+func handlePyhonDependencies(ssc model.Softwaresourcecode) error {
 	path := filepath.Join(PluginsPath, ssc.InstanceID)
 
 	_, err := os.Stat(filepath.Join(path, "requirements.txt"))

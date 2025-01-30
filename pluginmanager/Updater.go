@@ -5,12 +5,12 @@ import (
 	"os"
 
 	"github.com/epos-eu/converter-routine/connection"
-	"github.com/epos-eu/converter-routine/orms"
+	"github.com/epos-eu/converter-routine/dao/model"
 )
 
 const PluginsPath = "./plugins/"
 
-func Updater() ([]orms.SoftwareSourceCode, error) {
+func Updater() ([]model.Softwaresourcecode, error) {
 	scss, err := connection.GetSoftwareSourceCodes()
 	if err != nil {
 		return nil, err
@@ -29,7 +29,7 @@ func Updater() ([]orms.SoftwareSourceCode, error) {
 	}
 }
 
-func installAndUpdate(sscs []orms.SoftwareSourceCode, branch bool) []orms.SoftwareSourceCode {
+func installAndUpdate(sscs []model.Softwaresourcecode, branch bool) []model.Softwaresourcecode {
 	sscs = CloneOrPull(sscs, branch)
 
 	// for each installed ssc

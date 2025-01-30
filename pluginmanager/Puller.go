@@ -2,13 +2,14 @@ package pluginmanager
 
 import (
 	"errors"
-	"github.com/epos-eu/converter-routine/orms"
+
+	"github.com/epos-eu/converter-routine/dao/model"
 	"gopkg.in/src-d/go-git.v4"
 )
 
-func PullRepository(obj orms.SoftwareSourceCode, options git.PullOptions) error {
+func PullRepository(obj model.Softwaresourcecode, options git.PullOptions) error {
 	// Open the given repository
-	r, err := git.PlainOpen(PluginsPath + obj.GetInstanceID())
+	r, err := git.PlainOpen(PluginsPath + obj.InstanceID)
 	if err != nil {
 		return err
 	}

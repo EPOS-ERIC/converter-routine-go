@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -14,59 +15,82 @@ import (
 	"gorm.io/gorm/schema"
 )
 
-var dbs []*gorm.DB
+// dbPools is a map from an environment variable (that holds a DSN)
+// to a slice of *gorm.DB connections. This allows you to have multiple
+// distinct DSNs/connection sets under different environment variables.
+var dbPools = make(map[string][]*gorm.DB)
 
-// Connect returns an available database connection from the pool
-func Connect() (*gorm.DB, error) {
-	if len(dbs) == 0 {
-		err := initializeDbs()
+// Protect dbPools with a mutex if multiple goroutines might race to init
+var mu sync.Mutex
+
+// ConnectMetadata is a thin wrapper that uses the manager to fetch
+// a connection for METADATA_CATALOGUE_CONNECTION_STRING.
+func ConnectMetadata() (*gorm.DB, error) {
+	return connectManager("METADATA_CATALOGUE_CONNECTION_STRING")
+}
+
+// ConnectConverter is a thin wrapper that uses the manager to fetch
+// a connection for CONVERTER_CATALOGUE_CONNECTION_STRING.
+func ConnectConverter() (*gorm.DB, error) {
+	return connectManager("CONVERTER_CATALOGUE_CONNECTION_STRING")
+}
+
+// connectManager checks if we have a pool of *gorm.DB for the given
+// environment variable. If not, it initializes it, then returns a *gorm.DB.
+func connectManager(envVar string) (*gorm.DB, error) {
+	// check if we already have a pool
+	if _, exists := dbPools[envVar]; !exists || len(dbPools[envVar]) == 0 {
+		// initialize a new pool of connections
+		err := initializePool(envVar)
 		if err != nil {
 			return nil, fmt.Errorf("initialization error: %w", err)
 		}
-		if len(dbs) == 0 {
-			return nil, fmt.Errorf("no database connections available")
+		// check if that succeeded in creating any connections
+		if len(dbPools[envVar]) == 0 {
+			return nil, fmt.Errorf("no database connections available for %s", envVar)
 		}
 	}
 
-	// try each connection in order
-	for _, db := range dbs {
+	// At this point, dbPools[envVar] should have at least 1 *gorm.DB
+	// Try each one in turn and return the first that is reachable.
+	for _, db := range dbPools[envVar] {
 		sqlDB, err := db.DB()
 		if err != nil {
 			log.Printf("Error getting underlying *sql.DB: %v", err)
 			continue
 		}
 
-		// connection check
-		err = sqlDB.Ping()
-		if err != nil {
-			// log.Printf("Failed to ping database: %v", err)
+		// Check connectivity
+		if err := sqlDB.Ping(); err != nil {
+			log.Printf("Failed to ping database for env=%s: %v", envVar, err)
 			continue
 		}
 
+		// Return the first that works
 		return db, nil
 	}
 
-	return nil, fmt.Errorf("all database hosts are unreachable")
+	return nil, fmt.Errorf("all database hosts are unreachable for %s", envVar)
 }
 
-// initialize the dbs from the hosts
-func initializeDbs() error {
-	hosts, params, err := initializeHosts()
+// initializePool reads the DSN from envVar, parses out the hosts, sets up
+// multiple connections (one per host) and stores them in dbPools[envVar].
+func initializePool(envVar string) error {
+	hosts, params, err := parseMultiHostDSN(envVar)
 	if err != nil {
-		return fmt.Errorf("failed to initialize hosts: %w", err)
+		return fmt.Errorf("failed to parse DSN for %s: %w", envVar, err)
 	}
 
-	// GORM logger
+	// GORM logger config
 	logConfig := logger.Config{
 		SlowThreshold:             time.Second,
 		LogLevel:                  logger.Error,
 		IgnoreRecordNotFoundError: false,
 	}
 
-	// clear any existing connections
-	dbs = make([]*gorm.DB, 0, len(hosts))
+	// Make a slice to hold the *gorm.DB for each host
+	newDbs := make([]*gorm.DB, 0, len(hosts))
 
-	// create a db for each host
 	for _, host := range hosts {
 		currentDSN := fmt.Sprintf("postgresql://%s/%s", host, params)
 
@@ -80,53 +104,53 @@ func initializeDbs() error {
 				SingularTable: true,
 			},
 		})
-
 		if err != nil {
-			log.Printf("Failed to connect to host %s: %v", host, err)
+			log.Printf("Failed to connect to host %s (env=%s): %v", host, envVar, err)
 			continue
 		}
 
-		// add to the initialized databases
-		dbs = append(dbs, db)
+		newDbs = append(newDbs, db)
 	}
 
-	if len(dbs) == 0 {
-		return fmt.Errorf("failed to initialize any database connections")
+	if len(newDbs) == 0 {
+		return fmt.Errorf("failed to initialize any DB connections for %s", envVar)
 	}
+
+	// store in global map
+	dbPools[envVar] = newDbs
 
 	return nil
 }
 
-func initializeHosts() ([]string, string, error) {
-	dsn, ok := os.LookupEnv("POSTGRESQL_CONNECTION_STRING")
-	log.Println("POSTGRESQL_CONNECTION_STRING:", dsn)
+// parseMultiHostDSN fetches the DSN from the given envVar and
+// splits it into (hosts, params).
+func parseMultiHostDSN(envVar string) ([]string, string, error) {
+	dsn, ok := os.LookupEnv(envVar)
+	log.Printf("%s: %s", envVar, dsn)
 	if !ok {
-		return nil, "", fmt.Errorf("POSTGRESQL_CONNECTION_STRING is not set")
+		return nil, "", fmt.Errorf("%s is not set", envVar)
 	}
 
-	// Remove the "jdbc:" prefix if it exists
+	// Remove "jdbc:" prefix if present
 	dsn = strings.Replace(dsn, "jdbc:", "", 1)
-
 	log.Println("Cleaned DSN (jdbc prefix removed):", dsn)
 
-	// Remove unsupported parameters like targetServerType and loadBalanceHosts
+	// Remove unsupported parameters like targetServerType & loadBalanceHosts
 	re := regexp.MustCompile(`(&?(targetServerType|loadBalanceHosts)=[^&]+)`)
 	dsn = re.ReplaceAllString(dsn, "")
-
 	log.Println("Cleaned DSN (unsupported parameters removed):", dsn)
 
 	// Clean up trailing "?" or "&"
 	dsn = regexp.MustCompile(`[?&]$`).ReplaceAllString(dsn, "")
+	log.Println("Cleaned DSN (trailing ? or & removed):", dsn)
 
-	log.Println("Cleaned DSN (multi-host supported):", dsn)
-
-	// Parse hosts and connection parameters correctly
+	// Must contain "//"
 	hostStart := strings.Index(dsn, "//")
 	if hostStart == -1 {
 		return nil, "", fmt.Errorf("invalid connection string format: missing '//'")
 	}
 
-	// Extract everything after `//` (hosts and parameters)
+	// Extract everything after `//` (hosts and params)
 	hostsAndParams := dsn[hostStart+2:]
 	splitIndex := strings.Index(hostsAndParams, "/")
 	if splitIndex == -1 {
@@ -138,9 +162,8 @@ func initializeHosts() ([]string, string, error) {
 
 	hostList := strings.Split(hosts, ",")
 
-	log.Printf("Parsed Hosts: %v", hostList)
-	log.Printf("Connection Parameters: %s", params)
+	log.Printf("Parsed Hosts from %s: %v", envVar, hostList)
+	log.Printf("Connection Params from %s: %s", envVar, params)
 
 	return hostList, params, nil
 }
-
