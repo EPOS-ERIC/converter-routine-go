@@ -1,6 +1,7 @@
 package connection
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -36,8 +37,13 @@ func Connect() (*gorm.DB, error) {
 			continue
 		}
 
-		// connection check
-		err = sqlDB.Ping()
+		// Use a 2 sec timeout for the ping
+		ctx, ctxCancelFunc := context.WithTimeout(context.Background(), 2*time.Second)
+		// Check connectivity
+		err = sqlDB.PingContext(ctx)
+		// Cancel immediately after use
+		ctxCancelFunc()
+
 		if err != nil {
 			// log.Printf("Failed to ping database: %v", err)
 			continue
@@ -80,7 +86,6 @@ func initializeDbs() error {
 				SingularTable: true,
 			},
 		})
-
 		if err != nil {
 			log.Printf("Failed to connect to host %s: %v", host, err)
 			continue
@@ -143,4 +148,3 @@ func initializeHosts() ([]string, string, error) {
 
 	return hostList, params, nil
 }
-
