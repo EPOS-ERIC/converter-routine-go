@@ -85,6 +85,7 @@ func initializeDbs() error {
 				TablePrefix:   "",
 				SingularTable: true,
 			},
+			DisableAutomaticPing: true, // Needed because the base timeout might be very high, we manually do the ping anyway
 		})
 		if err != nil {
 			log.Printf("Failed to connect to host %s: %v", host, err)
