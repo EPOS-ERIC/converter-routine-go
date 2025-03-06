@@ -1,5 +1,7 @@
 package orms
 
+import "fmt"
+
 type Plugin struct {
 	tableName             struct{} `gorm:"plugin,alias:plugin"`
 	Id                    string   `gorm:"primaryKey"`
@@ -86,4 +88,31 @@ func (p *Plugin) SetEnabled(enabled bool) {
 }
 func (Plugin) TableName() string {
 	return "plugin" // Replace this with your actual table name
+}
+
+
+func (p *Plugin) IsValid() error {
+	if p.Execution == "" {
+		return fmt.Errorf("invalid Execution in plugin: %+v", p)
+	}
+	if p.Id == "" {
+		return fmt.Errorf("invalid Id in plugin: %+v", p)
+	}
+	if p.ProxyType == "" {
+		return fmt.Errorf("invalid ProxyType in plugin: %+v", p)
+	}
+	if p.Runtime == "" {
+		return fmt.Errorf("invalid Runtime in plugin: %+v", p)
+	}
+	if p.SoftwareApplicationID == "" {
+		return fmt.Errorf("invalid SoftwareApplicationID in plugin: %+v", p)
+	}
+	if p.SoftwareSourceCodeID == "" {
+		return fmt.Errorf("invalid SoftwareSourceCodeID in plugin: %+v", p)
+	}
+	if p.Version == "" {
+		return fmt.Errorf("invalid Version in plugin: %+v", p)
+	}
+
+	return nil
 }

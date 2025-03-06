@@ -2,6 +2,7 @@ package connection
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/epos-eu/converter-routine/orms"
@@ -187,28 +188,25 @@ func GeneratePluginsRelations() ([]orms.PluginRelations, error) {
 	for _, newOperation := range newApplicationsOperations {
 		plugin, err := getPluginFromSoftwareApplicationInstanceId(newOperation.InstanceSoftwareApplicationID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get plugin for software application instance ID %s: %w", newOperation.InstanceSoftwareApplicationID, err)
+			log.Printf("failed to get plugin for software application instance ID %s: %v", newOperation.InstanceSoftwareApplicationID, err)
+			continue
 		}
 
 		softwareApplicationParameters, err := getSoftwareApplicationParameters(newOperation.InstanceSoftwareApplicationID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get software application parameters for instance ID %s: %w", newOperation.InstanceSoftwareApplicationID, err)
+			log.Printf("failed to get software application parameters for instance ID %s: %v", newOperation.InstanceSoftwareApplicationID, err)
+			continue
 		}
 
 		if len(softwareApplicationParameters) != 2 {
-			return nil, fmt.Errorf("unexpected number of software application parameters (%d) for instance ID %s", len(softwareApplicationParameters), newOperation.InstanceSoftwareApplicationID)
+			log.Printf("unexpected number of software application parameters (%d) for instance ID %s", len(softwareApplicationParameters), newOperation.InstanceSoftwareApplicationID)
+			continue
 		}
 
-		var inputFormat, outputFormat string
-		for _, sap := range softwareApplicationParameters {
-			switch sap.Action {
-			case "object":
-				inputFormat = sap.EncodingFormat
-			case "result":
-				outputFormat = sap.EncodingFormat
-			default:
-				return nil, fmt.Errorf("unknown action type '%s' in software application parameters for instance ID %s", sap.Action, newOperation.InstanceSoftwareApplicationID)
-			}
+		inputFormat, outputFormat, err := getFormats(softwareApplicationParameters)
+		if err != nil {
+			log.Printf("error while generating the formats for operation '%s': %v", newOperation.InstanceOperationID, err)
+			continue
 		}
 
 		pluginRelation := orms.PluginRelations{
@@ -220,10 +218,30 @@ func GeneratePluginsRelations() ([]orms.PluginRelations, error) {
 			OutputFormat: outputFormat,
 		}
 
+		err = pluginRelation.IsValid()
+		if err != nil {
+			log.Printf("Error while generating plugin relations: %v", err)
+			continue
+		}
+
 		listOfPluginsRelations = append(listOfPluginsRelations, pluginRelation)
 	}
 
 	return listOfPluginsRelations, nil
+}
+
+func getFormats(softwareApplicationParameters []orms.SoftwareApplicationParameters) (inputFormat, outputFormat string, err error) {
+	for _, sap := range softwareApplicationParameters {
+		switch sap.Action {
+		case "object":
+			inputFormat = sap.EncodingFormat
+		case "result":
+			outputFormat = sap.EncodingFormat
+		default:
+			return "", "", fmt.Errorf("unknown action type '%s' in software application parameters", sap.Action)
+		}
+	}
+	return inputFormat, outputFormat, nil
 }
 
 func getPluginFromSoftwareApplicationInstanceId(softwareApplicationInstanceId string) (orms.Plugin, error) {
@@ -300,30 +318,16 @@ func GeneratePlugins(installedRepos []orms.SoftwareSourceCode) ([]orms.Plugin, e
 		}
 
 		// Initialize a new plugin
-		plugin := orms.Plugin{
-			Id:                   uuid.New().String(),
-			SoftwareSourceCodeID: objSoftwareSourceCode.InstanceID,
-			Version:              objSoftwareSourceCode.SoftwareVersion,
-			Installed:            true,
-			Enabled:              true,
+		plugin, err := initNewPlugin(objSoftwareSourceCode, listOfSoftwareApplications)
+		if err != nil {
+			log.Printf("error initializing plugin: %v", err)
+			continue
 		}
 
-		// For each software application
-		for _, objSoftwareApplication := range listOfSoftwareApplications {
-			// If the software source code and the software application don't match, continue
-			if strings.Replace(objSoftwareSourceCode.UID, "SoftwareSourceCode/", "", -1) != strings.Replace(objSoftwareApplication.UID, "SoftwareApplication/", "", -1) {
-				continue
-			}
-
-			lang, err := GetSoftwareSourceCodeProgrammingLanguage(objSoftwareSourceCode.InstanceID)
-			if err != nil {
-				return nil, err
-			}
-			// Set the plugin properties
-			plugin.ProxyType = lang
-			plugin.SoftwareApplicationID = objSoftwareApplication.InstanceID
-			plugin.Runtime = lang
-			plugin.Execution = objSoftwareApplication.Requirements
+		err = plugin.IsValid()
+		if err != nil {
+			log.Printf("Error while generating plugins: %v", err)
+			continue
 		}
 
 		// Add the plugin to the list
@@ -349,4 +353,35 @@ func getNewApplicationOperations() ([]orms.SoftwareApplicationOperation, error) 
 		return nil, err
 	}
 	return listOfSoftwareApplicationsOperations, nil
+}
+
+// Initialize a new plugin
+func initNewPlugin(objSoftwareSourceCode orms.SoftwareSourceCode, listOfSoftwareApplications []orms.SoftwareApplication) (plugin orms.Plugin, err error) {
+	plugin = orms.Plugin{
+		Id:                   uuid.New().String(),
+		SoftwareSourceCodeID: objSoftwareSourceCode.InstanceID,
+		Version:              objSoftwareSourceCode.SoftwareVersion,
+		Installed:            true,
+		Enabled:              true,
+	}
+
+	// For each software application
+	for _, objSoftwareApplication := range listOfSoftwareApplications {
+		// If the software source code and the software application don't match, continue
+		if strings.ReplaceAll(objSoftwareSourceCode.UID, "SoftwareSourceCode/", "") != strings.ReplaceAll(objSoftwareApplication.UID, "SoftwareApplication/", "") {
+			continue
+		}
+
+		lang, err := GetSoftwareSourceCodeProgrammingLanguage(objSoftwareSourceCode.InstanceID)
+		if err != nil {
+			return plugin, err
+		}
+		// Set the plugin properties
+		plugin.ProxyType = lang
+		plugin.SoftwareApplicationID = objSoftwareApplication.InstanceID
+		plugin.Runtime = lang
+		plugin.Execution = objSoftwareApplication.Requirements
+	}
+
+	return plugin, nil
 }

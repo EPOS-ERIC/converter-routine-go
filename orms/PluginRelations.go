@@ -1,5 +1,7 @@
 package orms
 
+import "fmt"
+
 type PluginRelations struct {
 	tableName    struct{} `gorm:"plugin_relations,alias:plugin_relations"`
 	Id           string   `gorm:"primaryKey"`
@@ -60,4 +62,27 @@ func (p *PluginRelations) SetOutputFormat(outputFormat string) {
 
 func (PluginRelations) TableName() string {
 	return "plugin_relations" // Replace this with your actual table name
+}
+
+func (r *PluginRelations) IsValid() error {
+	if r.Id == "" {
+		return fmt.Errorf("invalid Id in relation: %+v", r)
+	}
+	if r.InputFormat == "" {
+		return fmt.Errorf("invalid InputFormat in relation: %+v", r)
+	}
+	if r.OutputFormat == "" {
+		return fmt.Errorf("invalid OutputFormat in relation: %+v", r)
+	}
+	if r.PluginID == "" {
+		return fmt.Errorf("invalid PluginID in relation: %+v", r)
+	}
+	if r.RelationID == "" {
+		return fmt.Errorf("invalid RelationID in relation: %+v", r)
+	}
+	if r.RelationType == "" {
+		return fmt.Errorf("invalid RelationType in relation: %+v", r)
+	}
+
+	return nil
 }
