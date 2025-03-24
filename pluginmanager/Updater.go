@@ -32,17 +32,19 @@ func Updater() ([]model.Softwaresourcecode, error) {
 func installAndUpdate(sscs []model.Softwaresourcecode, branch bool) []model.Softwaresourcecode {
 	sscs = CloneOrPull(sscs, branch)
 
+	installed := make([]orms.SoftwareSourceCode, 0, len(sscs))
 	// for each installed ssc
-	for i, ssc := range sscs {
+	for _, ssc := range sscs {
 		err := UpdateDependencies(ssc)
 		if err != nil {
 			// if there is an error getting the dependencies don't consider the plugin as installed
-			sscs = append(sscs[:i], sscs[i+1:]...)
 			log.Printf("Error while getting dependencies for %v: %v", ssc.UID, err)
+		} else {
+			installed = append(installed, ssc)
 		}
 	}
 
-	return sscs
+	return installed
 }
 
 type VersionType string

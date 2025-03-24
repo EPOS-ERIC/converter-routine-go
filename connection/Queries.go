@@ -236,7 +236,8 @@ func GeneratePluginsRelations() ([]model.PluginRelation, error) {
 	for _, newOperation := range newApplicationsOperations {
 		plugin, err := getPluginFromSoftwareApplicationInstanceId(newOperation.SoftwareapplicationInstanceID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get plugin for software application instance ID %s: %w", newOperation.SoftwareapplicationInstanceID, err)
+			log.Printf("failed to get plugin for software application instance ID %s: %v", newOperation.InstanceSoftwareApplicationID, err)
+			continue
 		}
 
 		softwareApplicationParameters, err := getSoftwareApplicationParameters(newOperation.SoftwareapplicationInstanceID)
@@ -267,6 +268,12 @@ func GeneratePluginsRelations() ([]model.PluginRelation, error) {
 			RelationType: "Operation",
 			InputFormat:  inputFormat,
 			OutputFormat: outputFormat,
+		}
+
+		err = pluginRelation.IsValid()
+		if err != nil {
+			log.Printf("Error while generating plugin relations: %v", err)
+			continue
 		}
 
 		listOfPluginsRelations = append(listOfPluginsRelations, pluginRelation)

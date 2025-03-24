@@ -1,6 +1,7 @@
 package connection
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -60,9 +61,15 @@ func connectManager(envVar string) (*gorm.DB, error) {
 			continue
 		}
 
+		// Use a 2 sec timeout for the ping
+		ctx, ctxCancelFunc := context.WithTimeout(context.Background(), 2*time.Second)
 		// Check connectivity
-		if err := sqlDB.Ping(); err != nil {
-			log.Printf("Failed to ping database for env=%s: %v", envVar, err)
+		err = sqlDB.PingContext(ctx)
+		// Cancel immediately after use
+		ctxCancelFunc()
+
+		if err != nil {
+			// log.Printf("Failed to ping database: %v", err)
 			continue
 		}
 
@@ -103,6 +110,7 @@ func initializePool(envVar string) error {
 				TablePrefix:   "",
 				SingularTable: true,
 			},
+			DisableAutomaticPing: true, // Needed because the base timeout might be very high, we manually do the ping anyway
 		})
 		if err != nil {
 			log.Printf("Failed to connect to host %s (env=%s): %v", host, envVar, err)
