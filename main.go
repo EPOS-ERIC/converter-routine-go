@@ -60,7 +60,7 @@ func cleanPlugin(c *gin.Context) {
 		c.String(http.StatusBadRequest, "No plugin found with id: %v", id)
 		return
 	}
-	err = os.RemoveAll(path.Join(pluginmanager.PluginsPath, plugin.SoftwareSourceCodeID))
+	err = os.RemoveAll(path.Join(pluginmanager.PluginsPath, plugin.ID))
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Error cleaning plugin: %v", plugin)
 		return

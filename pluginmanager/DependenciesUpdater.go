@@ -7,34 +7,26 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/epos-eu/converter-routine/connection"
 	"github.com/epos-eu/converter-routine/dao/model"
 )
 
 // UpdateDependencies installs (or updates) the dependencies for a plugin depending on its runtime.
-func UpdateDependencies(ssc model.Softwaresourcecode) error {
-	lang, err := connection.GetSoftwareSourceCodeProgrammingLanguage(ssc.InstanceID)
-	if err != nil {
-		return fmt.Errorf("error getting programming language for SoftwareSourceCode with instanceId %s: %w", ssc.InstanceID, err)
-	}
-
-	// log.Printf("Updating dependencies for SoftwareSourceCode %s...", ssc.Instance_id)
-
-	switch lang {
-	case "Go", "Java":
+func UpdateDependencies(plugin model.Plugin) error {
+	switch plugin.Runtime {
+	case "binary", "java":
 		// no dependencies handling for java and go plugins
 		// log.Printf("\tDONE: No dependencies to update")
 		return nil
-	case "Python":
-		return handlePyhonDependencies(ssc)
+	case "python":
+		return handlePyhonDependencies(plugin)
 	default:
-		return fmt.Errorf("error: unknown runtime: %s", lang)
+		return fmt.Errorf("error: unknown runtime: %s", plugin.Runtime)
 	}
 }
 
 // handlePyhonDependencies sets up a Venv python environment and then installs the dependencies
-func handlePyhonDependencies(ssc model.Softwaresourcecode) error {
-	path := filepath.Join(PluginsPath, ssc.InstanceID)
+func handlePyhonDependencies(plugin model.Plugin) error {
+	path := filepath.Join(PluginsPath, plugin.ID)
 
 	_, err := os.Stat(filepath.Join(path, "requirements.txt"))
 	if os.IsNotExist(err) {

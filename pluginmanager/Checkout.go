@@ -5,9 +5,9 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 )
 
-func Checkout(obj model.Softwaresourcecode, options git.CheckoutOptions) error {
+func Checkout(plugin model.Plugin, options git.CheckoutOptions) error {
 	// Open the given repository
-	r, err := git.PlainOpen(PluginsPath + obj.InstanceID)
+	r, err := git.PlainOpen(PluginsPath + plugin.ID)
 	if err != nil {
 		return err
 	}

@@ -7,10 +7,10 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 )
 
-func CloneRepository(obj model.Softwaresourcecode, options git.CloneOptions) error {
-	_, err := git.PlainClone(PluginsPath+obj.InstanceID, false, &options)
+func CloneRepository(plugin model.Plugin, options git.CloneOptions) error {
+	_, err := git.PlainClone(PluginsPath+plugin.ID, false, &options)
 	if err != nil {
-		log.Printf("Error cloning repository %+v: %v\n", obj, err)
+		log.Printf("Error cloning repository %+v: %v\n", plugin, err)
 		return err
 	}
 	return nil

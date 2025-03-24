@@ -7,9 +7,9 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 )
 
-func PullRepository(obj model.Softwaresourcecode, options git.PullOptions) error {
+func PullRepository(plugin model.Plugin, options git.PullOptions) error {
 	// Open the given repository
-	r, err := git.PlainOpen(PluginsPath + obj.InstanceID)
+	r, err := git.PlainOpen(PluginsPath + plugin.ID)
 	if err != nil {
 		return err
 	}
