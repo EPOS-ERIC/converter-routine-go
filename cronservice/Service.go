@@ -2,10 +2,10 @@ package cronservice
 
 import (
 	"context"
-	"log"
+	"os"
 	"sync"
-	"time"
 
+	"github.com/epos-eu/converter-routine/loggers"
 	"github.com/epos-eu/converter-routine/pluginmanager"
 	"github.com/robfig/cron/v3"
 )
@@ -40,7 +40,8 @@ func (ds *CronService) Run(ctx context.Context) {
 
 	// Schedule the task to run every 5 minutes
 	if _, err := ds.cron.AddFunc(timePatterns, ds.Task); err != nil {
-		log.Fatal(err)
+		loggers.CRON_LOGGER.Error("Failed to schedule cron task", "error", err)
+		os.Exit(1)
 	}
 	ds.cron.Start()
 	<-ctx.Done()
@@ -50,18 +51,18 @@ func (ds *CronService) Run(ctx context.Context) {
 
 var taskMutex sync.Mutex
 
-// periodic Task
+// Task is the periodic cron task
 func (ds *CronService) Task() {
 	taskMutex.Lock()
 	defer taskMutex.Unlock()
 
-	log.Printf("Cron task started at %v\n", time.Now())
+	loggers.CRON_LOGGER.Info("Cron task started")
 
 	err := pluginmanager.Updater()
 	if err != nil {
-		log.Printf("Error updating plugins: %v\n", err)
+		loggers.CRON_LOGGER.Error("Error updating plugins", "error", err)
 		return
 	}
 
-	log.Printf("Cron task ended at %v\n", time.Now())
+	loggers.CRON_LOGGER.Info("Cron task ended")
 }

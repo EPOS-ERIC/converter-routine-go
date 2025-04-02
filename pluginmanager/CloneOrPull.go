@@ -2,10 +2,10 @@ package pluginmanager
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/epos-eu/converter-routine/dao/model"
+	"github.com/epos-eu/converter-routine/loggers"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 )
@@ -36,7 +36,7 @@ func CloneOrPull(plugin model.Plugin) error {
 
 	// Check if the repository directory exists
 	if _, err := os.Stat(repoPath); os.IsNotExist(err) {
-		log.Printf("Repository %v does not exist, cloning...", plugin.Repository)
+		loggers.CRON_LOGGER.Info("Repository does not exist, cloning it", "repository", plugin.Repository)
 		// If the repository does not exist, clone it
 		err = CloneRepository(plugin, cloneOptions)
 		if err != nil {
@@ -50,13 +50,13 @@ func CloneOrPull(plugin model.Plugin) error {
 
 		// Checkout the specified branch
 		if err := Checkout(plugin, checkoutOptions); err != nil {
-			return fmt.Errorf("error checking out branch %v: %v\n", referenceName, err)
+			return fmt.Errorf("error checking out branch %v: %v", referenceName, err)
 		}
 
-		log.Printf("Repository %v exists, pulling...\n", plugin.ID)
+		loggers.CRON_LOGGER.Info("Repository exists, pulling it", "repository", plugin.Repository)
 		// If the repository exists, attempt to pull the latest changes
 		if err := PullRepository(plugin, pullOptions); err != nil {
-			return fmt.Errorf("error pulling: %v\n", err)
+			return fmt.Errorf("error pulling: %v", err)
 		}
 	}
 

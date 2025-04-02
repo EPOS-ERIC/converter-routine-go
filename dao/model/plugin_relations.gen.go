@@ -1,16 +1,24 @@
 package model
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/google/uuid"
+)
 
 const TableNamePluginRelation = "plugin_relations"
 
 // PluginRelation mapped from table <plugin_relations>
 type PluginRelation struct {
-	ID           string `gorm:"column:id;primaryKey" json:"id"`
-	PluginID     string `gorm:"column:plugin_id;not null" json:"plugin_id"`
-	RelationID   string `gorm:"column:relation_id;not null" json:"relation_id"`
-	RelationType string `gorm:"column:relation_type;not null" json:"relation_type"`
-	InputFormat  string `gorm:"column:input_format;not null" json:"input_format"`
+	// the id of the relation (generated when the relation is created)
+	ID string `gorm:"column:id;primaryKey" json:"id"`
+	// the id of the plugin (from the plugin table)
+	PluginID string `gorm:"column:plugin_id;not null" json:"plugin_id"`
+	// the instanceId of the distribution
+	RelationID string `gorm:"column:relation_id;not null" json:"relation_id"`
+	// the file format expected by the plugin for the input
+	InputFormat string `gorm:"column:input_format;not null" json:"input_format"`
+	// the file format expected as the output from the plugin execution
 	OutputFormat string `gorm:"column:output_format;not null" json:"output_format"`
 }
 
@@ -20,7 +28,8 @@ func (*PluginRelation) TableName() string {
 }
 
 func (r *PluginRelation) Validate() error {
-	if r.ID == "" {
+	// TODO: better validation
+	if r.ID == "" || uuid.Validate(r.ID) != nil {
 		return fmt.Errorf("invalid Id in relation: %+v", r)
 	}
 	if r.InputFormat == "" {
@@ -29,14 +38,13 @@ func (r *PluginRelation) Validate() error {
 	if r.OutputFormat == "" {
 		return fmt.Errorf("invalid OutputFormat in relation: %+v", r)
 	}
-	if r.PluginID == "" {
+
+	if r.PluginID == "" || uuid.Validate(r.PluginID) != nil {
 		return fmt.Errorf("invalid PluginID in relation: %+v", r)
 	}
-	if r.RelationID == "" {
+
+	if r.RelationID == "" || uuid.Validate(r.RelationID) != nil {
 		return fmt.Errorf("invalid RelationID in relation: %+v", r)
-	}
-	if r.RelationType == "" {
-		return fmt.Errorf("invalid RelationType in relation: %+v", r)
 	}
 
 	return nil

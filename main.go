@@ -9,11 +9,15 @@ import (
 
 	"github.com/epos-eu/converter-routine/connection"
 	"github.com/epos-eu/converter-routine/cronservice"
+	"github.com/epos-eu/converter-routine/loggers"
 	"github.com/epos-eu/converter-routine/pluginmanager"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	// init json logging
+	loggers.InitSlog()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -44,6 +48,8 @@ func serviceInit(cs *cronservice.CronService) {
 
 	// Delete plugin directory
 	r.GET("/clean/:id", cleanPlugin)
+
+	// TODO: reinstall endpoint
 
 	err := r.Run(":8080")
 	panic(err)

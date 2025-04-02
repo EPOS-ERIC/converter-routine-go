@@ -1,15 +1,8 @@
 package connection
 
 import (
-	"log"
-
 	"github.com/epos-eu/converter-routine/dao/model"
 )
-
-// Initialize the logger
-func init() {
-	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
-}
 
 func GetPlugins() ([]model.Plugin, error) {
 	db, err := ConnectConverter()

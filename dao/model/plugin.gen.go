@@ -1,6 +1,10 @@
 package model
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/google/uuid"
+)
 
 const TableNamePlugin = "plugin"
 
@@ -14,6 +18,10 @@ type SupportedRuntimes string
 type Plugin struct {
 	// the id of the plugin (generated when the plugin is created)
 	ID string `gorm:"column:id;primaryKey" json:"id"`
+	// the name of the plugin
+	Name string `gorm:"column:name;not null" json:"name"`
+	// a description of the plugin
+	Description string `gorm:"column:description;not null" json:"description"`
 	// the name of the branch if version_type is branch or the tag number if it is tag
 	Version string `gorm:"column:version;not null" json:"version"`
 	// either 'branch' or 'tag'
@@ -39,20 +47,29 @@ func (*Plugin) TableName() string {
 
 func (p *Plugin) Validate() error {
 	// TODO: better validation
-	if p.ID == "" {
+	if p.ID == "" || uuid.Validate(p.ID) != nil {
 		return fmt.Errorf("invalid Id in plugin: %+v", p)
+	}
+	if p.Name == "" {
+		return fmt.Errorf("invalid Name in plugin: %+v", p)
 	}
 	if p.Version == "" {
 		return fmt.Errorf("invalid Version in plugin: %+v", p)
 	}
-	if p.VersionType == "" || !p.VersionType.IsValid() {
+	if p.VersionType == "" {
 		return fmt.Errorf("invalid VersionType in plugin: %+v", p)
+	}
+	if !p.VersionType.IsValid() {
+		return fmt.Errorf("invalid VersionType in plugin: %s is not in any of %+v", p.VersionType, VersionTypeValues())
 	}
 	if p.Repository == "" {
 		return fmt.Errorf("invalid Repository in plugin: %+v", p)
 	}
-	if p.Runtime == "" || !p.Runtime.IsValid() {
+	if p.Runtime == "" {
 		return fmt.Errorf("invalid Runtime in plugin: %+v", p)
+	}
+	if !p.Runtime.IsValid() {
+		return fmt.Errorf("invalid Runtime in plugin: %s is not in any of %+v", p.Runtime, SupportedRuntimesValues())
 	}
 	if p.Executable == "" {
 		return fmt.Errorf("invalid Executable in plugin: %+v", p)
