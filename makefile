@@ -1,46 +1,38 @@
-.PHONY: gen-docs convert-swagger clean setup build-go build-docker clean-all
+IMAGE_NAME ?= converter-routine-go-refactoring
 
-# Build Docker image 
+.PHONY:
 build-docker: build-go
 	@echo "Building Docker image: $(IMAGE_NAME)"
-	$(eval IMAGE_NAME := converter-routine-go-refactoring)
 	docker build -t $(IMAGE_NAME) .
 
-# Install necessary npm and go packages
+.PHONY:
 setup:
 	@echo "Setting up dependencies..."
 	npm install --no-save swagger2openapi
-	go get -d -v ./...
-	go install -v ./...
-	go install github.com/swaggo/swag/cmd/swag@latest
+	go install github.com/swaggo/swag/cmd/swag@v1.16.4
 
-# Generate Swagger 2.0 docs using swag
-gen-docs:
+.PHONY:
+gen-docs: setup
 	@echo "Generating Swagger 2.0 documentation..."
-	swag init -g main.go
+	swag init
 
-# Convert Swagger 2.0 to OpenAPI 3.0 using npm package
-convert-swagger:
+.PHONY:
+convert-swagger: setup
 	@echo "Converting Swagger 2.0 to OpenAPI 3.0..."
-	@if [ -f "./docs/swagger.json" ]; then \
-		node_modules/.bin/swagger2openapi ./docs/swagger.json -o ./openapi.json; \
-		echo "Conversion complete. OpenAPI 3.0 specs saved to ./openapi.json"; \
-	else \
-		echo "Error: Swagger 2.0 specs not found at ./docs/swagger.json"; \
-		exit 1; \
-	fi
+	node_modules/.bin/swagger2openapi ./docs/swagger.json -o ./openapi.json; \
 
-# Build the Go application (with embedded OpenAPI file)
-build-go: gen-docs convert-swagger
+.PHONY:
+build-go: gen-docs convert-swagger clean
 	@echo "Building Go binary with embedded OpenAPI spec..."
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build . 
 
-# Clean generated documentation
+.PHONY:
 clean:
 	@echo "Cleaning generated documentation..."
-	rm -f ./docs/swagger.json ./docs/swagger.yaml ./openapi.json
-	rm -f ./docs/docs.go
+	rm -rf ./docs
 
+.PHONY:
 clean-all: clean
+	rm -f ./openapi.json
 	@echo "Removing npm modules..."
 	rm -rf node_modules
