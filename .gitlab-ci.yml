@@ -12,7 +12,7 @@ build:
   image: golang:1.22
   script:
     - apt update
-    - apt install npm
+    - apt install npm -y
     - make build-go
   artifacts:
     paths:
