@@ -1,16 +1,15 @@
 package pluginmanager
 
 import (
-	"log"
-
 	"github.com/epos-eu/converter-routine/dao/model"
+	"github.com/epos-eu/converter-routine/loggers"
 	"gopkg.in/src-d/go-git.v4"
 )
 
-func CloneRepository(obj model.Softwaresourcecode, options git.CloneOptions) error {
-	_, err := git.PlainClone(PluginsPath+obj.InstanceID, false, &options)
+func CloneRepository(plugin model.Plugin, options git.CloneOptions) error {
+	_, err := git.PlainClone(PluginsPath+plugin.ID, false, &options)
 	if err != nil {
-		log.Printf("Error cloning repository %+v: %v\n", obj, err)
+		loggers.CRON_LOGGER.Error("Error cloning repository", "plugin", plugin, "error", err)
 		return err
 	}
 	return nil

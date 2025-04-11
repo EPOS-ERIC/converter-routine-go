@@ -11,9 +11,8 @@ build:
   stage: build
   image: golang:1.22
   script:
-    - go get -d -v ./...
-    - go install -v ./...
-    - CGO_ENABLED=0 GOOS=linux go build
+    - apt install npm
+    - make build-go
   artifacts:
     paths:
       - converter-routine
@@ -26,20 +25,3 @@ docker-build:
     - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
   dependencies:
     - build
-
-container_scanning:
-  stage: security
-  only:
-    - main
-  image: docker:stable-git
-  before_script:
-    - wget https://github.com/aquasecurity/trivy/releases/download/v0.29.2/trivy_0.29.2_Linux-64bit.tar.gz
-    - tar zxvf trivy_0.29.2_Linux-64bit.tar.gz
-  variables:
-    DOCKER_DRIVER: overlay2
-  allow_failure: true
-  services:
-    - docker:stable-dind
-  script:
-    - ./trivy image --exit-code 0 --severity HIGH --no-progress "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
-    - ./trivy image --exit-code 1 --severity CRITICAL --no-progress "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"

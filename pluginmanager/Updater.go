@@ -1,53 +1,52 @@
 package pluginmanager
 
 import (
-	"log"
-	"os"
+	"fmt"
 
 	"github.com/epos-eu/converter-routine/connection"
 	"github.com/epos-eu/converter-routine/dao/model"
+	"github.com/epos-eu/converter-routine/loggers"
 )
 
 const PluginsPath = "./plugins/"
 
-func Updater() ([]model.Softwaresourcecode, error) {
-	scss, err := connection.GetSoftwareSourceCodes()
+func Updater() error {
+	plugins, err := connection.GetPlugins()
 	if err != nil {
-		return nil, err
+		return err
+	}
+	if len(plugins) <= 0 {
+		loggers.CRON_LOGGER.Warn("No plugins found while updaging")
+		return nil
 	}
 
-	log.Printf("Found %d software source codes\n", len(scss))
+	loggers.CRON_LOGGER.Info("Found plugins", "count", len(plugins))
 
-	// get the type of the version from the env variables, if not set or set wrong treat the version as branch
-	versionType := os.Getenv("PLUGINS_VERSION_TYPE")
-
-	switch VersionType(versionType) {
-	case tag:
-		return installAndUpdate(scss, false), nil
-	default: // branch
-		return installAndUpdate(scss, true), nil
-	}
-}
-
-func installAndUpdate(sscs []model.Softwaresourcecode, branch bool) []model.Softwaresourcecode {
-	sscs = CloneOrPull(sscs, branch)
-
-	// for each installed ssc
-	for i, ssc := range sscs {
-		err := UpdateDependencies(ssc)
+	for _, plugin := range plugins {
+		err := installAndUpdate(plugin)
 		if err != nil {
-			// if there is an error getting the dependencies don't consider the plugin as installed
-			sscs = append(sscs[:i], sscs[i+1:]...)
-			log.Printf("Error while getting dependencies for %v: %v", ssc.UID, err)
+			loggers.CRON_LOGGER.Error("Error while installing and updating plugin", "pluginID", plugin.ID, "error", err)
+			// if there has been an error, don't consider this plugin as installed
+			connection.SetPluginInstalledStatus(plugin.ID, false)
+			continue
 		}
-	}
 
-	return sscs
+		connection.SetPluginInstalledStatus(plugin.ID, true)
+	}
+	return nil
 }
 
-type VersionType string
+func installAndUpdate(plugin model.Plugin) error {
+	err := CloneOrPull(plugin)
+	if err != nil {
+		return err
+	}
 
-const (
-	branch = VersionType("BRANCH")
-	tag    = VersionType("TAG")
-)
+	err = UpdateDependencies(plugin)
+	if err != nil {
+		// if there is an error getting the dependencies don't consider the plugin as installed
+		return fmt.Errorf("error while updating dependencies for %v: %v", plugin.ID, err)
+	}
+
+	return nil
+}

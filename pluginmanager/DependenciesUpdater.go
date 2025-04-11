@@ -2,68 +2,57 @@ package pluginmanager
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 
-	"github.com/epos-eu/converter-routine/connection"
 	"github.com/epos-eu/converter-routine/dao/model"
+	"github.com/epos-eu/converter-routine/loggers"
 )
 
-// UpdateDependencies installs (or updates) the dependencies for a plugin depending on its runtime.
-func UpdateDependencies(ssc model.Softwaresourcecode) error {
-	lang, err := connection.GetSoftwareSourceCodeProgrammingLanguage(ssc.InstanceID)
-	if err != nil {
-		return fmt.Errorf("error getting programming language for SoftwareSourceCode with instanceId %s: %w", ssc.InstanceID, err)
-	}
-
-	// log.Printf("Updating dependencies for SoftwareSourceCode %s...", ssc.Instance_id)
-
-	switch lang {
-	case "Go", "Java":
-		// no dependencies handling for java and go plugins
-		// log.Printf("\tDONE: No dependencies to update")
+// UpdateDependencies installs (or updates) the dependencies for a plugin depending on its runtime
+func UpdateDependencies(plugin model.Plugin) error {
+	switch plugin.Runtime {
+	case "binary", "java":
+		// No dependencies handling for java and go plugins
+		loggers.CRON_LOGGER.Debug("No dependencies to update", "plugin", plugin.ID)
 		return nil
-	case "Python":
-		return handlePyhonDependencies(ssc)
+	case "python":
+		return handlePythonDependencies(plugin)
 	default:
-		return fmt.Errorf("error: unknown runtime: %s", lang)
+		return fmt.Errorf("error: unknown runtime: %s", plugin.Runtime)
 	}
 }
 
-// handlePyhonDependencies sets up a Venv python environment and then installs the dependencies
-func handlePyhonDependencies(ssc model.Softwaresourcecode) error {
-	path := filepath.Join(PluginsPath, ssc.InstanceID)
+// handlePythonDependencies sets up a Python venv environment and then installs the dependencies
+func handlePythonDependencies(plugin model.Plugin) error {
+	path := filepath.Join(PluginsPath, plugin.ID)
 
 	_, err := os.Stat(filepath.Join(path, "requirements.txt"))
 	if os.IsNotExist(err) {
-		return fmt.Errorf("error installing dependencies: file 'reqirements.txt' not found")
+		return fmt.Errorf("error installing dependencies: file 'requirements.txt' not found")
 	} else if err != nil {
-		return fmt.Errorf("error installing dependencies: error while cheking existance of 'requirements.txt': %w", err)
+		return fmt.Errorf("error installing dependencies: error while checking existence of 'requirements.txt': %w", err)
 	}
 
-	// initialize the venv environment
+	// Initialize the venv environment
 	cmd := exec.Command("python3", "-m", "venv", "venv")
-	// set the directory where to execute the command ./plugin/{ssc.Instance_id}
 	cmd.Dir = path
-	// create the venv environment. if it already exists, nothing will happen
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("error creating venv environment: %w", err)
 	}
 
-	// log.Println("\tPython venv set up correctly")
+	loggers.CRON_LOGGER.Info("Python venv set up correctly", "plugin", plugin.ID)
 
-	// Execute the shell command
+	// Execute the command to install dependencies
 	cmd = exec.Command("venv/bin/pip", "install", "-r", "requirements.txt")
 	cmd.Dir = path
 	err = cmd.Run()
 	if err != nil {
-		log.Fatalf("\tError installing dependencies: %v", err)
+		return fmt.Errorf("error installing dependencies for plugin %s: %w", plugin.ID, err)
 	}
 
-	// log.Println("\tPython dependencies installed successfully")
-
+	loggers.CRON_LOGGER.Info("Python dependencies installed successfully", "plugin", plugin.ID)
 	return nil
 }
