@@ -12,9 +12,14 @@ setup:
 	go install github.com/swaggo/swag/cmd/swag@v1.16.4
 
 .PHONY:
-gen-docs: setup
+gen-docs: setup swag-format
 	@echo "Generating Swagger 2.0 documentation..."
 	swag init
+
+.PHONY:
+swag-format:
+	@echo "Formatting Swag comments..."
+	swag fmt
 
 .PHONY:
 convert-swagger: setup

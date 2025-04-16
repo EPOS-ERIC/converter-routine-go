@@ -51,17 +51,22 @@ func (ds *CronService) Run(ctx context.Context) {
 
 var taskMutex sync.Mutex
 
-// Task is the periodic cron task
+// task that updates all plugins
 func (ds *CronService) Task() {
 	taskMutex.Lock()
 	defer taskMutex.Unlock()
 
 	loggers.CRON_LOGGER.Info("Cron task started")
 
-	err := pluginmanager.Updater()
+	// Clean the plugin dir removing plugins that don't exist anymore
+	err := pluginmanager.CleanPlugins()
 	if err != nil {
-		loggers.CRON_LOGGER.Error("Error updating plugins", "error", err)
-		return
+		loggers.CRON_LOGGER.Error("Error cleaning plugins", "error", err)
+	}
+
+	err = pluginmanager.SyncPlugins()
+	if err != nil {
+		loggers.CRON_LOGGER.Error("Error syncing plugins", "error", err)
 	}
 
 	loggers.CRON_LOGGER.Info("Cron task ended")

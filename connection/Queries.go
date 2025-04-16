@@ -18,16 +18,15 @@ func GetPlugins() ([]model.Plugin, error) {
 	return listOfPlugins, nil
 }
 
-func GetPluginById(id string) (model.Plugin, error) {
+func GetPluginById(pluginId string) (model.Plugin, error) {
+	var plugin model.Plugin
 	db, err := ConnectConverter()
 	if err != nil {
-		return model.Plugin{}, err
+		return plugin, err
 	}
-
-	var plugin model.Plugin
-	err = db.Find(&plugin, "id = ?", id).Error
+	err = db.Model(&plugin).Where("id = ?", pluginId).First(&plugin).Error
 	if err != nil {
-		return model.Plugin{}, err
+		return plugin, err
 	}
 	return plugin, nil
 }
@@ -129,7 +128,7 @@ func SetPluginInstalledStatus(id string, installed bool) error {
 	existing.Installed = installed
 
 	// Update the existing plugin record with the new data
-	err = db.Model(&existing).Updates(existing).Error
+	err = db.Model(&existing).Select("*").Updates(existing).Error
 	if err != nil {
 		return err
 	}

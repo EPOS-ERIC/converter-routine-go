@@ -10,7 +10,7 @@ import (
 
 const PluginsPath = "./plugins/"
 
-func Updater() error {
+func SyncPlugins() error {
 	plugins, err := connection.GetPlugins()
 	if err != nil {
 		return err
@@ -23,15 +23,30 @@ func Updater() error {
 	loggers.CRON_LOGGER.Info("Found plugins", "count", len(plugins))
 
 	for _, plugin := range plugins {
-		err := installAndUpdate(plugin)
+		err := SyncPlugin(plugin)
+		// if a sync fails don't fail the whole task
 		if err != nil {
-			loggers.CRON_LOGGER.Error("Error while installing and updating plugin", "pluginID", plugin.ID, "error", err)
-			// if there has been an error, don't consider this plugin as installed
-			connection.SetPluginInstalledStatus(plugin.ID, false)
 			continue
 		}
+	}
+	return nil
+}
 
-		connection.SetPluginInstalledStatus(plugin.ID, true)
+func SyncPlugin(plugin model.Plugin) error {
+	err := installAndUpdate(plugin)
+	if err != nil {
+		loggers.CRON_LOGGER.Error("Error while installing and updating plugin", "pluginID", plugin.ID, "error", err)
+		// if there has been an error, don't consider this plugin as installed
+		newErr := connection.SetPluginInstalledStatus(plugin.ID, false)
+		if newErr != nil {
+			return newErr
+		}
+		return err
+	}
+
+	err = connection.SetPluginInstalledStatus(plugin.ID, true)
+	if err != nil {
+		return err
 	}
 	return nil
 }
