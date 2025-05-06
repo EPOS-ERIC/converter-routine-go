@@ -8,6 +8,7 @@ build-docker: build-go
 .PHONY:
 setup:
 	@echo "Setting up dependencies..."
+	# npm install --no-save swagger2openapi
 	go install github.com/zxmfke/swagger2openapi3/cmd/swag2op@v1.0.1
 	go install github.com/swaggo/swag/cmd/swag@v1.16.4
 
@@ -15,15 +16,20 @@ setup:
 gen-docs: setup swag-format
 	@echo "Generating Swagger 2.0 documentation..."
 	swag2op init --openo ./docs/
-	cp ./docs/swagger.json ./openapi.json
 
 .PHONY:
 swag-format:
 	@echo "Formatting Swag comments..."
 	swag fmt
 
+# not needed anymore, necessary when using the npm package for converting
+# .PHONY:
+# convert-swagger: setup
+# 	@echo "Converting Swagger 2.0 to OpenAPI 3.0..."
+# 	node_modules/.bin/swagger2openapi ./docs/swagger.json -o ./server/openapi.json; \
+
 .PHONY:
-build-go: gen-docs
+build-go: gen-docs clean
 	@echo "Building Go binary with embedded OpenAPI spec..."
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build . 
 
@@ -31,4 +37,9 @@ build-go: gen-docs
 clean:
 	@echo "Cleaning generated documentation..."
 	rm -rf ./docs
+
+.PHONY:
+clean-all: clean
 	rm -f ./openapi.json
+	@echo "Removing npm modules..."
+	rm -rf node_modules
