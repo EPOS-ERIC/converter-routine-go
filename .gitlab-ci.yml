@@ -11,8 +11,8 @@ build:
   stage: build
   image: golang:1.22
   script:
-    - apt update
-    - apt install npm -y
+    # - apt update
+    # - apt install npm -y
     - make build-go
   artifacts:
     paths:

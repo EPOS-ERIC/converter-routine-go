@@ -9,4 +9,4 @@ WORKDIR /opt/converter
 
 COPY converter-routine converter-routine
 
-CMD ./converter-routine
+CMD ["./converter-routine"]
