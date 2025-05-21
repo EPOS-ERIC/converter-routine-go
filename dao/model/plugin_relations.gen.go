@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const TableNamePluginRelation = "plugin_relations"
+const TableNamePluginRelation = "converter_catalogue.plugin_relations"
 
 // PluginRelation mapped from table <plugin_relations>
 type PluginRelation struct {

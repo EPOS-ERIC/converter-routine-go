@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const TableNamePlugin = "plugin"
+const TableNamePlugin = "converter_catalogue.plugin"
 
 // ENUM(branch, tag)
 type VersionType string

@@ -16,7 +16,7 @@ func SyncPlugins() error {
 		return err
 	}
 	if len(plugins) <= 0 {
-		loggers.CRON_LOGGER.Warn("No plugins found while updaging")
+		loggers.CRON_LOGGER.Warn("No plugins found while updating")
 		return nil
 	}
 
