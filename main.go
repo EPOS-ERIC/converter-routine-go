@@ -230,13 +230,7 @@ func healthCheck(c *gin.Context) {
 }
 
 func health() error {
-	// Check the connection to the db
-	_, err := connection.ConnectMetadata()
-	if err != nil {
-		return fmt.Errorf("can't connect to Metadata database")
-	}
-
-	_, err = connection.ConnectConverter()
+	_, err := connection.ConnectConverter()
 	if err != nil {
 		return fmt.Errorf("can't connect to Converter database")
 	}

@@ -25,12 +25,6 @@ var dbPools = make(map[string][]*gorm.DB)
 // Protect dbPools with a mutex if multiple goroutines might race to init
 var mu sync.Mutex
 
-// ConnectMetadata is a thin wrapper that uses the manager to fetch
-// a connection for METADATA_CATALOGUE_CONNECTION_STRING
-func ConnectMetadata() (*gorm.DB, error) {
-	return connectManager("METADATA_CATALOGUE_CONNECTION_STRING")
-}
-
 // ConnectConverter is a thin wrapper that uses the manager to fetch
 // a connection for CONVERTER_CATALOGUE_CONNECTION_STRING
 func ConnectConverter() (*gorm.DB, error) {
