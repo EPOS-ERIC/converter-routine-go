@@ -89,7 +89,7 @@ func serviceInit(cs *cronservice.CronService) {
 		v1.POST("/sync/:plugin_id", syncHandler.syncPlugin)
 
 		// Check health (db connection)
-		v1.GET("/health", healthCheck)
+		v1.GET("/actuator/health", healthCheck)
 
 		// Delete plugin directory
 		v1.POST("/clean/:plugin_id", cleanPlugin)
