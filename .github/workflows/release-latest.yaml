@@ -12,12 +12,10 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21.x'
+          go-version: "1.24.2"
       - name: Install dependencies
         run: |
-          go get -d -v ./...
-          go install -v ./...
-          CGO_ENABLED=0 GOOS=linux go build
+          make build-go
       - name: Docker build
         run: |
           docker build . -t epos/converter-routine-go:latest
@@ -29,3 +27,4 @@ jobs:
       - name: Docker push
         run: |
           docker push epos/converter-routine-go:latest
+
