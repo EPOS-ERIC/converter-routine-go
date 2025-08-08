@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/epos-eu/converter-routine/dao/model"
-	"github.com/epos-eu/converter-routine/loggers"
 )
 
 // UpdateDependencies installs (or updates) the dependencies for a plugin depending on its runtime
@@ -15,7 +14,7 @@ func UpdateDependencies(plugin model.Plugin) error {
 	switch plugin.Runtime {
 	case "binary", "java":
 		// No dependencies handling for java and go plugins
-		loggers.CRON_LOGGER.Debug("No dependencies to update", "plugin", plugin.ID)
+		log.Debug("No dependencies to update", "plugin", plugin.ID)
 		return nil
 	case "python":
 		return handlePythonDependencies(plugin)
@@ -43,7 +42,7 @@ func handlePythonDependencies(plugin model.Plugin) error {
 		return fmt.Errorf("error creating venv environment: %w", err)
 	}
 
-	loggers.CRON_LOGGER.Info("Python venv set up correctly", "plugin", plugin.ID)
+	log.Info("Python venv set up correctly", "plugin", plugin.ID)
 
 	// Execute the command to install dependencies
 	cmd = exec.Command("venv/bin/pip", "install", "-r", "requirements.txt")
@@ -53,6 +52,6 @@ func handlePythonDependencies(plugin model.Plugin) error {
 		return fmt.Errorf("error installing dependencies for plugin %s: %w", plugin.ID, err)
 	}
 
-	loggers.CRON_LOGGER.Info("Python dependencies installed successfully", "plugin", plugin.ID)
+	log.Info("Python dependencies installed successfully", "plugin", plugin.ID)
 	return nil
 }

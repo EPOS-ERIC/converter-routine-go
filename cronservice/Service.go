@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/epos-eu/converter-routine/loggers"
+	"github.com/epos-eu/converter-routine/logging"
 	"github.com/epos-eu/converter-routine/pluginmanager"
 	"github.com/robfig/cron/v3"
 )
@@ -33,6 +33,8 @@ const (
 	timePatterns = "*/5 * * * *"
 )
 
+var log = logging.Get("cron")
+
 // Run starts service
 func (ds *CronService) Run(ctx context.Context) {
 	// Execute the task immediately
@@ -40,7 +42,7 @@ func (ds *CronService) Run(ctx context.Context) {
 
 	// Schedule the task to run every 5 minutes
 	if _, err := ds.cron.AddFunc(timePatterns, ds.Task); err != nil {
-		loggers.CRON_LOGGER.Error("Failed to schedule cron task", "error", err)
+		log.Error("Failed to schedule cron task", "error", err)
 		os.Exit(1)
 	}
 	ds.cron.Start()
@@ -56,18 +58,18 @@ func (ds *CronService) Task() {
 	taskMutex.Lock()
 	defer taskMutex.Unlock()
 
-	loggers.CRON_LOGGER.Info("Cron task started")
+	log.Info("Cron task started")
 
 	// Clean the plugin dir removing plugins that don't exist anymore
 	err := pluginmanager.CleanPlugins()
 	if err != nil {
-		loggers.CRON_LOGGER.Error("Error cleaning plugins", "error", err)
+		log.Error("Error cleaning plugins", "error", err)
 	}
 
 	err = pluginmanager.SyncPlugins()
 	if err != nil {
-		loggers.CRON_LOGGER.Error("Error syncing plugins", "error", err)
+		log.Error("Error syncing plugins", "error", err)
 	}
 
-	loggers.CRON_LOGGER.Info("Cron task ended")
+	log.Info("Cron task ended")
 }

@@ -7,9 +7,11 @@ import (
 
 	"github.com/epos-eu/converter-routine/connection"
 	"github.com/epos-eu/converter-routine/dao/model"
-	"github.com/epos-eu/converter-routine/loggers"
+	"github.com/epos-eu/converter-routine/logging"
 	"gorm.io/gorm"
 )
+
+var log = logging.Get("plugin_manager")
 
 // CleanPlugins cleans the plugin directory removing all the installations that are not plugins that are currently in the db
 func CleanPlugins() error {
@@ -34,7 +36,7 @@ func CleanPlugins() error {
 		if _, ok := m[file.Name()]; !ok {
 			// make sure that the file is a directory
 			if !file.Type().IsDir() {
-				loggers.CRON_LOGGER.Error("found an unknown file in the plugin dir", "unknown file name", file.Name())
+				log.Error("found an unknown file in the plugin dir", "unknown file name", file.Name())
 				continue
 			}
 
@@ -45,14 +47,14 @@ func CleanPlugins() error {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					// clean the directory removing it
 
-					loggers.CRON_LOGGER.Info("cleaning directory for plugin", "directory name", file.Name())
+					log.Info("cleaning directory for plugin", "directory name", file.Name())
 					err := cleanDir(file.Name())
 					if err != nil {
-						loggers.CRON_LOGGER.Error("error cleaning plugin", "error", err, "directory name", file.Name())
+						log.Error("error cleaning plugin", "error", err, "directory name", file.Name())
 						continue
 					}
 				} else { // some other error
-					loggers.CRON_LOGGER.Error("error getting pulgin from dir name", "error", err, "directory name", file.Name())
+					log.Error("error getting pulgin from dir name", "error", err, "directory name", file.Name())
 					continue
 				}
 			}
@@ -71,7 +73,7 @@ func cleanDir(name string) error {
 	return nil
 }
 
-// clean a plugin installation and set installed to false for that plugin, then returns it
+// CleanPlugin cleans a plugin installation and set installed to false for that plugin, then returns it
 func CleanPlugin(id string) (plugin model.Plugin, err error) {
 	// check that this plugin exists
 	plugin, err = connection.GetPluginById(id)

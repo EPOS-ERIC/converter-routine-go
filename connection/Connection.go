@@ -3,18 +3,21 @@ package connection
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/epos-eu/converter-routine/loggers"
+	"github.com/epos-eu/converter-routine/logging"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
+)
+
+var (
+	log = logging.Get("database")
+	dnsRegex  = regexp.MustCompile(`(&?(targetServerType|loadBalanceHosts)=[^&]+)`)
 )
 
 // dbPools is a map from an environment variable (that holds a DSN)
@@ -34,25 +37,37 @@ func ConnectConverter() (*gorm.DB, error) {
 // connectManager checks if we have a pool of *gorm.DB for the given
 // environment variable. If not, it initializes it, then returns a *gorm.DB
 func connectManager(envVar string) (*gorm.DB, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	log.Debug("requesting database connection", "env_var", envVar)
+
 	// check if we already have a pool
 	if _, exists := dbPools[envVar]; !exists || len(dbPools[envVar]) == 0 {
+		log.Info("initializing new database pool", "env_var", envVar)
+
 		// initialize a new pool of connections
 		err := initializePool(envVar)
 		if err != nil {
+			log.Error("failed to initialize database pool", "env_var", envVar, "error", err)
 			return nil, fmt.Errorf("initialization error: %w", err)
 		}
+
 		// check if that succeeded in creating any connections
 		if len(dbPools[envVar]) == 0 {
+			log.Error("no database connections available after initialization", "env_var", envVar)
 			return nil, fmt.Errorf("no database connections available for %s", envVar)
 		}
+
+		log.Info("database pool initialized successfully", "env_var", envVar, "connection_count", len(dbPools[envVar]))
 	}
 
 	// At this point, dbPools[envVar] should have at least 1 *gorm.DB
 	// Try each one in turn and return the first that is reachable
-	for _, db := range dbPools[envVar] {
+	for i, db := range dbPools[envVar] {
 		sqlDB, err := db.DB()
 		if err != nil {
-			loggers.CRON_LOGGER.Error("Error getting underlying *sql.DB", "error", err)
+			log.Error("failed to get underlying sql.DB", "env_var", envVar, "connection_index", i, "error", err)
 			continue
 		}
 
@@ -62,14 +77,17 @@ func connectManager(envVar string) (*gorm.DB, error) {
 		cancel()
 
 		if err != nil {
-			// log the ping failure and try the next connection
-			loggers.CRON_LOGGER.Error("Failed to ping database", "envVar", envVar, "error", err)
+			log.Warn("database ping failed, trying next connection", "env_var", envVar, "connection_index", i, "error", err)
 			continue
 		}
+
+		log.Debug("database connection established successfully", "env_var", envVar, "connection_index", i)
 
 		// Return the first connection that works
 		return db, nil
 	}
+
+	log.Error("all database hosts unreachable", "env_var", envVar, "total_connections", len(dbPools[envVar]))
 
 	return nil, fmt.Errorf("all database hosts are unreachable for %s", envVar)
 }
@@ -82,24 +100,20 @@ func initializePool(envVar string) error {
 		return fmt.Errorf("failed to parse DSN for %s: %w", envVar, err)
 	}
 
-	// GORM logger config
-	logConfig := logger.Config{
-		SlowThreshold:             time.Second,
-		LogLevel:                  logger.Error,
-		IgnoreRecordNotFoundError: false,
-	}
+	log.Info("initializing database connections", "env_var", envVar, "host_count", len(hosts), "hosts", hosts)
 
 	// Make a slice to hold the *gorm.DB for each host
 	newDbs := make([]*gorm.DB, 0, len(hosts))
 
-	for _, host := range hosts {
+	for i, host := range hosts {
 		currentDSN := fmt.Sprintf("postgresql://%s/%s", host, params)
+
+		log.Debug("attempting to connect to database host", "env_var", envVar, "host_index", i, "host", host)
 
 		db, err := gorm.Open(postgres.New(postgres.Config{
 			DriverName: "pgx",
 			DSN:        currentDSN,
 		}), &gorm.Config{
-			Logger: logger.New(log.New(os.Stdout, "\r\n", log.LstdFlags), logConfig),
 			NamingStrategy: schema.NamingStrategy{
 				TablePrefix:   "",
 				SingularTable: true,
@@ -107,9 +121,11 @@ func initializePool(envVar string) error {
 			DisableAutomaticPing: true, // We manually do the ping
 		})
 		if err != nil {
-			loggers.CRON_LOGGER.Error("Failed to connect to host", "host", host, "envVar", envVar, "error", err)
+			log.Error("failed to connect to database host", "env_var", envVar, "host", host, "error", err)
 			continue
 		}
+
+		log.Info("successfully connected to database host", "env_var", envVar, "host", host)
 
 		newDbs = append(newDbs, db)
 	}
@@ -121,6 +137,8 @@ func initializePool(envVar string) error {
 	// Store in the global map
 	dbPools[envVar] = newDbs
 
+	log.Info("database pool initialization completed", "env_var", envVar, "successful_connections", len(newDbs), "total_hosts", len(hosts))
+
 	return nil
 }
 
@@ -128,27 +146,36 @@ func initializePool(envVar string) error {
 // splits it into (hosts, params)
 func parseMultiHostDSN(envVar string) ([]string, string, error) {
 	dsn, ok := os.LookupEnv(envVar)
-	loggers.CRON_LOGGER.Info(envVar, "dsn", dsn)
 	if !ok {
+		log.Error("environment variable not set", "env_var", envVar)
 		return nil, "", fmt.Errorf("%s is not set", envVar)
 	}
 
+	log.Debug("parsing DSN from environment variable", "env_var", envVar, "original_dsn", dsn)
+
 	// Remove "jdbc:" prefix if present
-	dsn = strings.Replace(dsn, "jdbc:", "", 1)
-	loggers.CRON_LOGGER.Debug("Cleaned DSN (jdbc prefix removed)", "dsn", dsn)
+	if strings.HasPrefix(dsn, "jdbc:") {
+		dsn = strings.Replace(dsn, "jdbc:", "", 1)
+		log.Debug("removed jdbc prefix from DSN", "cleaned_dsn", dsn)
+	}
 
 	// Remove unsupported parameters like targetServerType & loadBalanceHosts
-	re := regexp.MustCompile(`(&?(targetServerType|loadBalanceHosts)=[^&]+)`)
-	dsn = re.ReplaceAllString(dsn, "")
-	loggers.CRON_LOGGER.Debug("Cleaned DSN (unsupported parameters removed)", "dsn", dsn)
+	if dnsRegex.MatchString(dsn) {
+		dsn = dnsRegex.ReplaceAllString(dsn, "")
+		log.Debug("removed unsupported parameters from DSN", "cleaned_dsn", dsn)
+	}
 
 	// Clean up trailing "?" or "&"
-	dsn = regexp.MustCompile(`[?&]$`).ReplaceAllString(dsn, "")
-	loggers.CRON_LOGGER.Debug("Cleaned DSN (trailing ? or & removed)", "dsn", dsn)
+	trailingRe := regexp.MustCompile(`[?&]$`)
+	if trailingRe.MatchString(dsn) {
+		dsn = trailingRe.ReplaceAllString(dsn, "")
+		log.Debug("removed trailing characters from DSN", "cleaned_dsn", dsn)
+	}
 
 	// Must contain "//"
 	hostStart := strings.Index(dsn, "//")
 	if hostStart == -1 {
+		log.Error("invalid DSN format: missing '//'", "env_var", envVar, "dsn", dsn)
 		return nil, "", fmt.Errorf("invalid connection string format: missing '//'")
 	}
 
@@ -156,6 +183,7 @@ func parseMultiHostDSN(envVar string) ([]string, string, error) {
 	hostsAndParams := dsn[hostStart+2:]
 	splitIndex := strings.Index(hostsAndParams, "/")
 	if splitIndex == -1 {
+		log.Error("invalid DSN format: missing '/' after hosts", "env_var", envVar, "hosts_and_params", hostsAndParams)
 		return nil, "", fmt.Errorf("invalid connection string format: missing '/' after hosts")
 	}
 
@@ -164,7 +192,7 @@ func parseMultiHostDSN(envVar string) ([]string, string, error) {
 
 	hostList := strings.Split(hosts, ",")
 
-	loggers.CRON_LOGGER.Debug("Parsed Hosts & Connection Params", "envVar", envVar, "hosts", hostList, "params", params)
+	log.Debug("DSN parsing completed successfully", "env_var", envVar, "hosts", hostList, "params", params)
 
 	return hostList, params, nil
 }

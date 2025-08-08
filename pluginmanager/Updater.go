@@ -5,7 +5,6 @@ import (
 
 	"github.com/epos-eu/converter-routine/connection"
 	"github.com/epos-eu/converter-routine/dao/model"
-	"github.com/epos-eu/converter-routine/loggers"
 )
 
 const PluginsPath = "./plugins/"
@@ -16,11 +15,11 @@ func SyncPlugins() error {
 		return err
 	}
 	if len(plugins) <= 0 {
-		loggers.CRON_LOGGER.Warn("No plugins found while updating")
+		log.Warn("No plugins found while updating")
 		return nil
 	}
 
-	loggers.CRON_LOGGER.Info("Found plugins", "count", len(plugins))
+	log.Info("Found plugins", "count", len(plugins))
 
 	for _, plugin := range plugins {
 		err := SyncPlugin(plugin)
@@ -35,7 +34,7 @@ func SyncPlugins() error {
 func SyncPlugin(plugin model.Plugin) error {
 	err := installAndUpdate(plugin)
 	if err != nil {
-		loggers.CRON_LOGGER.Error("Error while installing and updating plugin", "pluginID", plugin.ID, "error", err)
+		log.Error("Error while installing and updating plugin", "pluginID", plugin.ID, "error", err)
 		// if there has been an error, don't consider this plugin as installed
 		newErr := connection.SetPluginInstalledStatus(plugin.ID, false)
 		if newErr != nil {

@@ -2,25 +2,25 @@ package pluginmanager
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/epos-eu/converter-routine/dao/model"
-	"github.com/epos-eu/converter-routine/loggers"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 )
 
-// CloneOrPull a plugin
 func CloneOrPull(plugin model.Plugin) error {
-	// Determine the reference name based on the provided options
 	var referenceName plumbing.ReferenceName
-	if plugin.VersionType == "branch" {
+	switch plugin.VersionType {
+	case "branch":
 		referenceName = plumbing.NewBranchReferenceName(plugin.Version)
-	} else {
+	case "tag":
 		referenceName = plumbing.NewTagReferenceName(plugin.Version)
+	default:
+		return fmt.Errorf("unknown version type for plugin '%+v': %s", plugin, plugin.VersionType)
 	}
 
-	// Define clone and pull options
 	cloneOptions := git.CloneOptions{
 		URL:           plugin.Repository,
 		ReferenceName: referenceName,
@@ -31,32 +31,28 @@ func CloneOrPull(plugin model.Plugin) error {
 		SingleBranch:  true,
 	}
 
-	// Construct the repository path using the instance ID
 	repoPath := PluginsPath + plugin.ID
 
-	// Check if the repository directory exists
 	if _, err := os.Stat(repoPath); os.IsNotExist(err) {
-		loggers.CRON_LOGGER.Info("Repository does not exist, cloning it", "repository", plugin.Repository)
-		// If the repository does not exist, clone it
+		log.Info("Repository does not exist, cloning it", "repository", plugin.Repository)
 		err = CloneRepository(plugin, cloneOptions)
 		if err != nil {
-			return fmt.Errorf("error while cloning %v: %v", plugin.ID, err)
+			return fmt.Errorf("error while cloning %v: %w", plugin.ID, err)
 		}
 	} else {
-		// Define checkout options
 		checkoutOptions := git.CheckoutOptions{
 			Branch: referenceName,
 		}
 
-		// Checkout the specified branch
 		if err := Checkout(plugin, checkoutOptions); err != nil {
-			return fmt.Errorf("error checking out branch %v: %v", referenceName, err)
+			return fmt.Errorf("error checking out branch %v: %w", referenceName, err)
 		}
 
-		loggers.CRON_LOGGER.Info("Repository exists, pulling it", "repository", plugin.Repository)
-		// If the repository exists, attempt to pull the latest changes
+		log.Info("Repository exists, pulling it",
+			slog.Group("plugin", "id", plugin.ID, "name", plugin.Name),
+		)
 		if err := PullRepository(plugin, pullOptions); err != nil {
-			return fmt.Errorf("error pulling: %v", err)
+			return fmt.Errorf("error pulling plugin '%+v': %w", plugin, err)
 		}
 	}
 

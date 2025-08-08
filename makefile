@@ -1,4 +1,4 @@
-IMAGE_NAME ?= converter-routine-go-refactoring
+IMAGE_NAME ?= converter-routine-go
 
 .PHONY:
 build-docker: build-go
@@ -14,7 +14,7 @@ setup:
 .PHONY:
 gen-docs: setup swag-format
 	@echo "Generating Swagger 2.0 documentation..."
-	swag init
+	swag init -g server.go
 
 .PHONY:
 swag-format:
