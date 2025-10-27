@@ -17,6 +17,8 @@ import (
 	"gorm.io/gorm"
 )
 
+var log = logging.Get("api")
+
 //go:embed openapi.json
 var openAPISpec []byte
 
@@ -239,7 +241,8 @@ func reinstallPlugin(c *gin.Context) {
 func healthCheck(c *gin.Context) {
 	err := health()
 	if err != nil {
-		c.String(http.StatusInternalServerError, "Unhealthy: "+err.Error())
+		log.Error("health check failed", "error", err)
+		c.String(http.StatusServiceUnavailable, "Unhealthy")
 		return
 	} else {
 		c.String(http.StatusOK, "Healthy")
@@ -248,9 +251,19 @@ func healthCheck(c *gin.Context) {
 }
 
 func health() error {
-	_, err := connection.ConnectConverter()
+	db, err := connection.ConnectConverter()
 	if err != nil {
 		return fmt.Errorf("can't connect to Converter database")
+	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("can't get underlying sql.DB: %w", err)
+	}
+
+	err = sqlDB.Ping()
+	if err != nil {
+		return fmt.Errorf("can't ping database: %w", err)
 	}
 
 	return nil
