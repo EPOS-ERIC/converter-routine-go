@@ -16,7 +16,7 @@ import (
 
 var (
 	log      = logging.Get("database")
-	dnsRegex = regexp.MustCompile(`(&?(targetServerType|loadBalanceHosts)=[^&]+)`)
+	dnsRegex = regexp.MustCompile(`(&?(targetServerType|loadBalanceHosts|readOnly)=[^&]+)`)
 )
 
 var (
@@ -96,7 +96,7 @@ func parseAndCleanDSN(envVar string) (string, error) {
 	}
 
 	// Add pgx configuration
-	dsn = dsn + separator + "target_session_attrs=read-write"
+	dsn = dsn + separator + "sslmode=disable&target_session_attrs=read-write"
 
 	log.Debug("DSN parsed and configured", "env_var", envVar)
 	return dsn, nil
