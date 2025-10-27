@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/epos-eu/converter-routine/logging"
+	sloggorm "github.com/orandin/slog-gorm"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
@@ -38,6 +39,12 @@ func initializeConnection(envVar string) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to parse DSN for %s: %w", envVar, err)
 	}
 
+	gormLogger := sloggorm.New(
+		sloggorm.WithHandler(logging.Get("gorm").Handler()),
+		sloggorm.WithSlowThreshold(200*time.Millisecond),
+		sloggorm.WithRecordNotFoundError(),
+	)
+
 	const maxRetries = 3
 	for attempt := range maxRetries {
 		if attempt > 0 {
@@ -52,6 +59,7 @@ func initializeConnection(envVar string) (*gorm.DB, error) {
 			DriverName: "pgx",
 			DSN:        dsn,
 		}), &gorm.Config{
+			Logger: gormLogger,
 			NamingStrategy: schema.NamingStrategy{
 				TablePrefix:   "",
 				SingularTable: true,
@@ -80,22 +88,15 @@ func parseAndCleanDSN(envVar string) (string, error) {
 
 	log.Debug("parsing DSN from environment variable", "env_var", envVar)
 
-	// Remove "jdbc:" prefix if present
 	dsn = strings.TrimPrefix(dsn, "jdbc:")
-
-	// Remove unsupported parameters
 	dsn = dnsRegex.ReplaceAllString(dsn, "")
-
-	// Clean up trailing "?" or "&"
 	dsn = strings.TrimRight(dsn, "?&")
 
-	// Determine separator
 	separator := "?"
 	if strings.Contains(dsn, "?") {
 		separator = "&"
 	}
 
-	// Add pgx configuration
 	dsn = dsn + separator + "sslmode=disable&target_session_attrs=read-write"
 
 	log.Debug("DSN parsed and configured", "env_var", envVar)
