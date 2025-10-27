@@ -3,14 +3,14 @@ package pluginmanager
 import (
 	"fmt"
 
-	"github.com/epos-eu/converter-routine/connection"
 	"github.com/epos-eu/converter-routine/dao/model"
+	"github.com/epos-eu/converter-routine/db"
 )
 
 const PluginsPath = "./plugins/"
 
 func SyncPlugins() error {
-	plugins, err := connection.GetPlugins()
+	plugins, err := db.GetPlugins()
 	if err != nil {
 		return err
 	}
@@ -36,14 +36,14 @@ func SyncPlugin(plugin model.Plugin) error {
 	if err != nil {
 		log.Error("Error while installing and updating plugin", "pluginID", plugin.ID, "error", err)
 		// if there has been an error, don't consider this plugin as installed
-		newErr := connection.SetPluginInstalledStatus(plugin.ID, false)
+		newErr := db.SetPluginInstalledStatus(plugin.ID, false)
 		if newErr != nil {
 			return newErr
 		}
 		return err
 	}
 
-	err = connection.SetPluginInstalledStatus(plugin.ID, true)
+	err = db.SetPluginInstalledStatus(plugin.ID, true)
 	if err != nil {
 		return err
 	}

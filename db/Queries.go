@@ -1,11 +1,11 @@
-package connection
+package db
 
 import (
 	"github.com/epos-eu/converter-routine/dao/model"
 )
 
 func GetPlugins() ([]model.Plugin, error) {
-	db, err := ConnectConverter()
+	db, err := Connect()
 	if err != nil {
 		return nil, err
 	}
@@ -20,7 +20,7 @@ func GetPlugins() ([]model.Plugin, error) {
 
 func GetPluginById(pluginId string) (model.Plugin, error) {
 	var plugin model.Plugin
-	db, err := ConnectConverter()
+	db, err := Connect()
 	if err != nil {
 		return plugin, err
 	}
@@ -32,7 +32,7 @@ func GetPluginById(pluginId string) (model.Plugin, error) {
 }
 
 func GetPluginRelations() ([]model.PluginRelation, error) {
-	db, err := ConnectConverter()
+	db, err := Connect()
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func GetPluginRelations() ([]model.PluginRelation, error) {
 }
 
 func SetPlugins(ph []model.Plugin) error {
-	db, err := ConnectConverter()
+	db, err := Connect()
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func SetPlugins(ph []model.Plugin) error {
 }
 
 func SetPluginsRelations(ph []model.PluginRelation) error {
-	db, err := ConnectConverter()
+	db, err := Connect()
 	if err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func SetPluginsRelations(ph []model.PluginRelation) error {
 }
 
 func InsertPlugins(plugins []model.Plugin) error {
-	db, err := ConnectConverter()
+	db, err := Connect()
 	if err != nil {
 		return err
 	}
@@ -99,7 +99,7 @@ func InsertPlugins(plugins []model.Plugin) error {
 }
 
 func InsertPluginsRelations(pluginRelations []model.PluginRelation) error {
-	db, err := ConnectConverter()
+	db, err := Connect()
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func InsertPluginsRelations(pluginRelations []model.PluginRelation) error {
 
 // SetPluginStatus given an id and a status sets the current installed status of a plugin
 func SetPluginInstalledStatus(id string, installed bool) error {
-	db, err := ConnectConverter()
+	db, err := Connect()
 	if err != nil {
 		return err
 	}

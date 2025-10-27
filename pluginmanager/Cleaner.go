@@ -5,8 +5,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/epos-eu/converter-routine/connection"
 	"github.com/epos-eu/converter-routine/dao/model"
+	"github.com/epos-eu/converter-routine/db"
 	"github.com/epos-eu/converter-routine/logging"
 	"gorm.io/gorm"
 )
@@ -15,7 +15,7 @@ var log = logging.Get("plugin_manager")
 
 // CleanPlugins cleans the plugin directory removing all the installations that are not plugins that are currently in the db
 func CleanPlugins() error {
-	plugins, err := connection.GetPlugins()
+	plugins, err := db.GetPlugins()
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func CleanPlugins() error {
 			}
 
 			// get the plugin with this id and remove it if it does not exist
-			_, err := connection.GetPluginById(file.Name())
+			_, err := db.GetPluginById(file.Name())
 			if err != nil {
 				// if a plugin with this id does not exist, we can clean it
 				if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -76,7 +76,7 @@ func cleanDir(name string) error {
 // CleanPlugin cleans a plugin installation and set installed to false for that plugin, then returns it
 func CleanPlugin(id string) (plugin model.Plugin, err error) {
 	// check that this plugin exists
-	plugin, err = connection.GetPluginById(id)
+	plugin, err = db.GetPluginById(id)
 	if err != nil {
 		return plugin, err
 	}
@@ -88,7 +88,7 @@ func CleanPlugin(id string) (plugin model.Plugin, err error) {
 	}
 
 	// set the installation status to false
-	err = connection.SetPluginInstalledStatus(id, false)
+	err = db.SetPluginInstalledStatus(id, false)
 	if err != nil {
 		return plugin, err
 	}

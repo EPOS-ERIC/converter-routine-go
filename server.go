@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/epos-eu/converter-routine/connection"
 	"github.com/epos-eu/converter-routine/cronservice"
+	"github.com/epos-eu/converter-routine/db"
 	"github.com/epos-eu/converter-routine/logging"
 	"github.com/epos-eu/converter-routine/pluginmanager"
 	"github.com/gin-gonic/gin"
@@ -160,7 +160,7 @@ func (s *syncHandler) syncPlugin(c *gin.Context) {
 		return
 	}
 
-	plugin, err := connection.GetPluginById(id)
+	plugin, err := db.GetPluginById(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Plugin not found in DB: " + err.Error()})
@@ -251,7 +251,7 @@ func healthCheck(c *gin.Context) {
 }
 
 func health() error {
-	db, err := connection.ConnectConverter()
+	db, err := db.Connect()
 	if err != nil {
 		return fmt.Errorf("can't connect to Converter database")
 	}
