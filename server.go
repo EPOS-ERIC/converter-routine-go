@@ -251,10 +251,7 @@ func healthCheck(c *gin.Context) {
 }
 
 func health() error {
-	db, err := db.Connect()
-	if err != nil {
-		return fmt.Errorf("can't connect to Converter database")
-	}
+	db := db.Get()
 
 	sqlDB, err := db.DB()
 	if err != nil {

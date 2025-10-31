@@ -4,11 +4,16 @@ import (
 	"context"
 
 	"github.com/epos-eu/converter-routine/cronservice"
+	"github.com/epos-eu/converter-routine/db"
 )
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	if err := db.Init(); err != nil {
+		panic("failed to connect to database: " + err.Error())
+	}
 
 	// start the cron
 	cs := cronservice.NewCronService()

@@ -5,13 +5,10 @@ import (
 )
 
 func GetPlugins() ([]model.Plugin, error) {
-	db, err := Connect()
-	if err != nil {
-		return nil, err
-	}
+	db := Get()
 
 	var listOfPlugins []model.Plugin
-	err = db.Find(&listOfPlugins).Error
+	err := db.Find(&listOfPlugins).Error
 	if err != nil {
 		return nil, err
 	}
@@ -20,11 +17,8 @@ func GetPlugins() ([]model.Plugin, error) {
 
 func GetPluginById(pluginId string) (model.Plugin, error) {
 	var plugin model.Plugin
-	db, err := Connect()
-	if err != nil {
-		return plugin, err
-	}
-	err = db.Model(&plugin).Where("id = ?", pluginId).First(&plugin).Error
+	db := Get()
+	err := db.Model(&plugin).Where("id = ?", pluginId).First(&plugin).Error
 	if err != nil {
 		return plugin, err
 	}
@@ -32,13 +26,10 @@ func GetPluginById(pluginId string) (model.Plugin, error) {
 }
 
 func GetPluginRelations() ([]model.PluginRelation, error) {
-	db, err := Connect()
-	if err != nil {
-		return nil, err
-	}
+	db := Get()
 
 	var listOfPluginRelations []model.PluginRelation
-	err = db.Find(&listOfPluginRelations).Error
+	err := db.Find(&listOfPluginRelations).Error
 	if err != nil {
 		return nil, err
 	}
@@ -46,13 +37,10 @@ func GetPluginRelations() ([]model.PluginRelation, error) {
 }
 
 func SetPlugins(ph []model.Plugin) error {
-	db, err := Connect()
-	if err != nil {
-		return err
-	}
+	db := Get()
 
 	// Truncate plugins table
-	err = db.Exec("TRUNCATE plugin CASCADE").Error
+	err := db.Exec("TRUNCATE plugin CASCADE").Error
 	if err != nil {
 		return err
 	}
@@ -66,13 +54,10 @@ func SetPlugins(ph []model.Plugin) error {
 }
 
 func SetPluginsRelations(ph []model.PluginRelation) error {
-	db, err := Connect()
-	if err != nil {
-		return err
-	}
+	db := Get()
 
 	// Truncate plugin_relations table
-	err = db.Exec("TRUNCATE plugin_relations CASCADE").Error
+	err := db.Exec("TRUNCATE plugin_relations CASCADE").Error
 	if err != nil {
 		return err
 	}
@@ -86,12 +71,9 @@ func SetPluginsRelations(ph []model.PluginRelation) error {
 }
 
 func InsertPlugins(plugins []model.Plugin) error {
-	db, err := Connect()
-	if err != nil {
-		return err
-	}
+	db := Get()
 
-	err = db.Create(&plugins).Error
+	err := db.Create(&plugins).Error
 	if err != nil {
 		return err
 	}
@@ -99,12 +81,9 @@ func InsertPlugins(plugins []model.Plugin) error {
 }
 
 func InsertPluginsRelations(pluginRelations []model.PluginRelation) error {
-	db, err := Connect()
-	if err != nil {
-		return err
-	}
+	db := Get()
 
-	err = db.Create(&pluginRelations).Error
+	err := db.Create(&pluginRelations).Error
 	if err != nil {
 		return err
 	}
@@ -113,14 +92,11 @@ func InsertPluginsRelations(pluginRelations []model.PluginRelation) error {
 
 // SetPluginStatus given an id and a status sets the current installed status of a plugin
 func SetPluginInstalledStatus(id string, installed bool) error {
-	db, err := Connect()
-	if err != nil {
-		return err
-	}
+	db := Get()
 
 	// Find the existing plugin record by ID
 	var existing model.Plugin
-	err = db.First(&existing, "id = ?", id).Error
+	err := db.First(&existing, "id = ?", id).Error
 	if err != nil {
 		return err
 	}

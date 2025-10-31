@@ -5,7 +5,6 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/epos-eu/converter-routine/logging"
@@ -20,25 +19,19 @@ var (
 	dnsRegex = regexp.MustCompile(`(&?(targetServerType|loadBalanceHosts|readOnly)=[^&]+)`)
 )
 
-var (
-	converterDB *gorm.DB
-	once        sync.Once
-	initErr     error
-)
+var converterDB *gorm.DB
 
-func Connect() (*gorm.DB, error) {
-	once.Do(func() {
-		converterDB, initErr = initializeConnection("POSTGRESQL_CONNECTION_STRING", "CONVERTER_CATALOGUE_CONNECTION_STRING")
-	})
-	return converterDB, initErr
+func Get() *gorm.DB {
+	return converterDB
 }
 
-func initializeConnection(envVars ...string) (*gorm.DB, error) {
+func Init() error {
+	envVars := []string{"POSTGRESQL_CONNECTION_STRING", "CONVERTER_CATALOGUE_CONNECTION_STRING"}
 	for _, envVar := range envVars {
 
 		dsn, err := parseAndCleanDSN(envVar)
 		if err != nil {
-			log.Error("failed to parse DSN", "env_var", envVar, "error", err)
+			log.Warn("failed to parse DSN", "env_var", envVar, "error", err)
 			continue
 		}
 
@@ -48,7 +41,7 @@ func initializeConnection(envVars ...string) (*gorm.DB, error) {
 			sloggorm.WithRecordNotFoundError(),
 		)
 
-		const maxRetries = 3
+		const maxRetries = 10
 		for attempt := range maxRetries {
 			if attempt > 0 {
 				backoff := time.Duration(1<<uint(attempt-1)) * time.Second
@@ -78,10 +71,11 @@ func initializeConnection(envVars ...string) (*gorm.DB, error) {
 			}
 
 			log.Info("successfully connected to database", "env_var", envVar)
-			return db, nil
+			converterDB = db
+			return nil
 		}
 	}
-	return nil, fmt.Errorf("failed to connect to any database: all connection strings exhausted")
+	return fmt.Errorf("failed to connect to any database: all connection strings exhausted")
 }
 
 func parseAndCleanDSN(envVar string) (string, error) {
