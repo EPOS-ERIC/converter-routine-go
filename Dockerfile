@@ -12,8 +12,8 @@ RUN go install github.com/swaggo/swag/cmd/swag@latest
 COPY . .
 
 # Generate OpenAPI spec
-RUN swag init -o ./server --outputTypes json && \
-    mv ./server/swagger.json ./server/openapi.json
+RUN swag init -o . --outputTypes json && \
+    mv ./swagger.json ./openapi.json
 
 # Find and build the main package
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o converter-routine .
