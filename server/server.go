@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/epos-eu/converter-routine"
 	"github.com/epos-eu/converter-routine/cronservice"
 	"github.com/epos-eu/converter-routine/db"
 	"github.com/epos-eu/converter-routine/logging"
