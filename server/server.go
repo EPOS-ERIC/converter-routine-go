@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	_ "embed"
@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/epos-eu/converter-routine"
 	"github.com/epos-eu/converter-routine/cronservice"
 	"github.com/epos-eu/converter-routine/db"
 	"github.com/epos-eu/converter-routine/logging"
@@ -106,7 +107,7 @@ func serviceInit(cs *cronservice.CronService) {
 
 	r.Use(slogGinMiddleware())
 
-	syncHandler := syncHandler{cs}
+	syncHandler := main.syncHandler{cs}
 	v1 := r.Group("/api/converter-routine/v1")
 	{
 		v1.POST("/sync", syncHandler.sync)
@@ -139,7 +140,7 @@ func serviceInit(cs *cronservice.CronService) {
 //	@Produce		json
 //	@Success		202	{object}	OK
 //	@Router			/sync [post]
-func (s *syncHandler) sync(c *gin.Context) {
+func (s *main.syncHandler) sync(c *gin.Context) {
 	go s.cs.Task()
 	c.JSON(http.StatusAccepted, "Sync started")
 }
@@ -153,7 +154,7 @@ func (s *syncHandler) sync(c *gin.Context) {
 //	@Produce		json
 //	@Success		200	{object}	OK
 //	@Router			/sync/{plugin_id} [post]
-func (s *syncHandler) syncPlugin(c *gin.Context) {
+func (s *main.syncHandler) syncPlugin(c *gin.Context) {
 	id, ok := c.Params.Get("plugin_id")
 	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing parameter 'plugin_id'"})

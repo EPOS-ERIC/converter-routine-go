@@ -5,6 +5,7 @@ import (
 
 	"github.com/epos-eu/converter-routine/cronservice"
 	"github.com/epos-eu/converter-routine/db"
+	"github.com/epos-eu/converter-routine/server"
 )
 
 func main() {
@@ -20,7 +21,7 @@ func main() {
 	go cs.Run(ctx)
 
 	// start the service
-	go serviceInit(cs)
+	go server.serviceInit(cs)
 
 	// block the main goroutine
 	select {}
