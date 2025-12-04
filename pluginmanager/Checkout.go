@@ -2,7 +2,7 @@ package pluginmanager
 
 import (
 	"github.com/epos-eu/converter-routine/dao/model"
-	"gopkg.in/src-d/go-git.v4"
+	"github.com/go-git/go-git/v5"
 )
 
 func Checkout(plugin model.Plugin, options git.CheckoutOptions) error {
