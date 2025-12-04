@@ -1,0 +1,222 @@
+name: "release, push to central and mirror"
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - main
+
+env:
+  VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
+  REGISTRY: docker.io
+  IMAGE_NAME: epos/${{ github.event.repository.name }}
+  GO_VERSION: '1.25'
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      # Generate OpenAPI spec BEFORE building
+      - name: Install swag
+        run: go install github.com/swaggo/swag/cmd/swag@latest
+
+      - name: Generate OpenAPI spec
+        run: |
+          swag init -o ./server --outputTypes json
+          mv ./server/swagger.json ./server/openapi.json
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: go
+
+      - name: Build for CodeQL
+        run: go build ./...
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+
+  dependency-check:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      # Generate OpenAPI spec BEFORE any Go commands
+      - name: Install swag
+        run: go install github.com/swaggo/swag/cmd/swag@latest
+
+      - name: Generate OpenAPI spec
+        run: |
+          swag init -o ./server --outputTypes json
+          mv ./server/swagger.json ./server/openapi.json
+
+      - name: Run govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+          go-version-input: ${{ env.GO_VERSION }}
+          go-package: ./...
+
+      - name: Run Nancy (Sonatype)
+        run: |
+          go install github.com/sonatype-nexus-community/nancy@latest
+          go list -json -deps ./... | nancy sleuth
+
+      - name: Run Gosec Security Scanner
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          gosec -no-fail -fmt=sarif -out=gosec-results.sarif -stdout -verbose=text ./... || true
+          # Fix invalid SARIF by removing problematic fixes field
+          if [ -f gosec-results.sarif ]; then
+            jq 'walk(if type == "object" and has("fixes") then del(.fixes) else . end)' gosec-results.sarif > gosec-results-fixed.sarif
+            mv gosec-results-fixed.sarif gosec-results.sarif
+          fi
+
+      - name: Upload Gosec results
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles('gosec-results.sarif') != ''
+        with:
+          sarif_file: gosec-results.sarif
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [security-scan, dependency-check]
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+      id-token: write
+      attestations: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Install swag
+        run: go install github.com/swaggo/swag/cmd/swag@latest
+
+      - name: Generate OpenAPI spec
+        run: |
+          swag init -o ./server --outputTypes json
+          mv ./server/swagger.json ./server/openapi.json
+          ls -la ./server/
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Build binary
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+            -ldflags="-s -w -X main.Version=${{ env.VERSION }}" \
+            -o bin/app ./...
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-artifact
+          path: bin/
+          retention-days: 1
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ env.VERSION }}
+            type=sha,prefix=
+
+      - name: Build and Push with Attestations
+        id: build-push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ env.IMAGE_NAME }}:${{ env.VERSION }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles('trivy-results.sarif') != ''
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run Docker Scout
+        uses: docker/scout-action@v1
+        if: github.ref_type == 'tag'
+        with:
+          command: cves,recommendations
+          image: ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+          only-severities: critical,high
+          exit-code: false
+
+  mirror:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Mirror to GitLab
+        run: |
+          git remote add gitlab https://github:${{ secrets.GITLAB }}@epos-ci.brgm.fr/epos/${{ github.event.repository.name }}.git
+          git push --force gitlab ${{ github.ref }}
