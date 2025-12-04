@@ -33,8 +33,8 @@ jobs:
       - name: Install swag and generate OpenAPI spec
         run: |
           go install github.com/swaggo/swag/cmd/swag@latest
-          swag init -o ./server --outputTypes json
-          mv ./server/swagger.json ./server/openapi.json
+          swag init -o . --outputTypes json
+          mv ./swagger.json ./openapi.json
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
@@ -75,20 +75,20 @@ jobs:
 
           # Generate swagger
           if [ -n "$MAIN_FILE" ]; then
-            swag init -g "$MAIN_FILE" -o ./server --outputTypes json
+            swag init -g "$MAIN_FILE" -o . --outputTypes json
           else
-            swag init -o ./server --outputTypes json
+            swag init -o . --outputTypes json
           fi
 
           # Verify and move
-          if [ -f "./server/swagger.json" ]; then
-            mv ./server/swagger.json ./server/openapi.json
+          if [ -f "./swagger.json" ]; then
+            mv ./swagger.json ./openapi.json
             echo "✅ OpenAPI spec generated successfully"
-            ls -la ./server/
+            ls -la ./
           else
             echo "❌ Failed to generate swagger.json"
             echo "Checking server directory:"
-            ls -la ./server/ 2>/dev/null || echo "server/ doesn't exist"
+            ls -la ./ 2>/dev/null || echo "server/ doesn't exist"
             exit 1
           fi
 
@@ -147,8 +147,8 @@ jobs:
 
       - name: Generate OpenAPI spec
         run: |
-          swag init -o ./server --outputTypes json
-          mv ./server/swagger.json ./server/openapi.json
+          swag init -o . --outputTypes json
+          mv ./swagger.json ./openapi.json
 
       - name: Run tests
         run: go test -v -race -coverprofile=coverage.out ./...
