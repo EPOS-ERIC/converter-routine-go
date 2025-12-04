@@ -13,6 +13,8 @@ WORKDIR /opt/converter
 
 COPY converter-routine converter-routine
 
+RUN mkdir /opt/converter/plugins
+
 RUN chown -R appuser:appgroup /opt/converter
 
 USER appuser:appgroup
