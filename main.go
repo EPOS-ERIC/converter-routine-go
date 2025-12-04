@@ -20,7 +20,7 @@ func main() {
 	go cs.Run(ctx)
 
 	// start the service
-	go ServiceInit(cs)
+	go serviceInit(cs)
 
 	// block the main goroutine
 	select {}
