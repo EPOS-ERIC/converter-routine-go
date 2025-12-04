@@ -5,7 +5,7 @@ on:
     branches:
       - main
     tags:
-      - '*'
+      - "*"
   pull_request:
     branches:
       - main
@@ -14,7 +14,7 @@ env:
   VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
   REGISTRY: docker.io
   IMAGE_NAME: epos/${{ github.event.repository.name }}
-  GO_VERSION: '1.25.5'
+  GO_VERSION: "1.25.5"
 
 jobs:
   security-scan:
@@ -30,19 +30,13 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Install swag and generate OpenAPI spec
-        run: |
-          go install github.com/swaggo/swag/cmd/swag@latest
-          swag init -o . --outputTypes json
-          mv ./swagger.json ./openapi.json
-
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: go
 
       - name: Build for CodeQL
-        run: go build ./...
+        run: make build-go
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
@@ -55,68 +49,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v6
+      - id: govulncheck
+        uses: golang/govulncheck-action@v1
         with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Install tools
-        run: |
-          go install github.com/swaggo/swag/cmd/swag@latest
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          go install github.com/securego/gosec/v2/cmd/gosec@latest
-          go install github.com/sonatype-nexus-community/nancy@latest
-
-      - name: Generate OpenAPI spec
-        run: |
-          # Try to find main.go location
-          MAIN_FILE=$(find . -name "main.go" -type f | head -1)
-          echo "Found main.go at: $MAIN_FILE"
-
-          # Generate swagger
-          if [ -n "$MAIN_FILE" ]; then
-            swag init -g "$MAIN_FILE" -o . --outputTypes json
-          else
-            swag init -o . --outputTypes json
-          fi
-
-          # Verify and move
-          if [ -f "./swagger.json" ]; then
-            mv ./swagger.json ./openapi.json
-            echo "✅ OpenAPI spec generated successfully"
-            ls -la ./
-          else
-            echo "❌ Failed to generate swagger.json"
-            echo "Checking server directory:"
-            ls -la ./ 2>/dev/null || echo "server/ doesn't exist"
-            exit 1
-          fi
-
-      - name: Verify build works
-        run: go build ./...
-
-      - name: Run govulncheck
-        run: govulncheck ./...
-        continue-on-error: true  # Remove this after fixing go-git
-
-      - name: Run Nancy (Sonatype)
-        run: go list -json -deps ./... | nancy sleuth
-        continue-on-error: true
+          go-version-input: ${{ env.GO_VERSION }}
+          go-package: ./...
 
       - name: Run Gosec Security Scanner
-        run: gosec -no-fail -fmt=sarif -out=gosec-results.sarif ./... || true
-
-      - name: Fix SARIF format
-        if: always() && hashFiles('gosec-results.sarif') != ''
-        run: |
-          jq 'walk(if type == "object" and has("fixes") then del(.fixes) else . end)' gosec-results.sarif > gosec-fixed.sarif
-          mv gosec-fixed.sarif gosec-results.sarif
-
-      - name: Upload Gosec results
-        uses: github/codeql-action/upload-sarif@v4
-        if: always() && hashFiles('gosec-results.sarif') != ''
+        uses: securego/gosec@master
         with:
-          sarif_file: gosec-results.sarif
+          # we let the report trigger content trigger a failure using the GitHub Security features.
+          args: "-no-fail -fmt sarif -out results.sarif ./..."
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          # Path to SARIF file relative to the root of the repository
+          sarif_file: results.sarif
 
   build:
     runs-on: ubuntu-latest
@@ -139,37 +88,15 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Install swag
-        run: go install github.com/swaggo/swag/cmd/swag@latest
-
-      - name: Generate OpenAPI spec
-        run: |
-          swag init -o . --outputTypes json
-          mv ./swagger.json ./openapi.json
-
-      - name: Run tests
-        run: go test -v -race -coverprofile=coverage.out ./...
-
-      - name: Build binary
-        run: |
-          mkdir -p bin
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-            -ldflags="-s -w -X main.Version=${{ env.VERSION }}" \
-            -o bin/ ./...
-          ls -la bin/
+      - name: Install dependencies & Build go
+        run: make build-go
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: binary-artifact
-          path: bin/
+          path: converter-routine
           retention-days: 1
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -205,16 +132,16 @@ jobs:
       - name: Scan Docker image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: '${{ env.IMAGE_NAME }}:${{ env.VERSION }}'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
+          image-ref: "${{ env.IMAGE_NAME }}:${{ env.VERSION }}"
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v4
         if: always() && hashFiles('trivy-results.sarif') != ''
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: "trivy-results.sarif"
 
       - name: Run Docker Scout
         uses: docker/scout-action@v1
