@@ -7,7 +7,7 @@
 #
 # Jobs:
 #   1. security-scan: Runs CodeQL analysis for Go code
-#   2. dependency-check: Scans dependencies for known vulnerabilities using govulncheck
+#   2. dependency-check: Scans dependencies for known vulnerabilities using govulncheck and gosec
 #   3. build: Builds binary artifact and Docker image, pushes to GitHub Container Registry (public)
 #   4. mirror: Mirrors the repository to GitLab
 
@@ -18,7 +18,7 @@ on:
     branches:
       - main
     tags:
-      - '*'
+      - "*"
   pull_request:
     branches:
       - main
@@ -26,7 +26,7 @@ on:
 env:
   VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
   REGISTRY: ghcr.io
-  GO_VERSION: '1.25.5'
+  GO_VERSION: "1.23"
 
 jobs:
   security-scan:
@@ -42,13 +42,18 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: go
 
       - name: Build for CodeQL
-        run: go build ./...
+        run: make build-go
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
@@ -61,25 +66,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Install govulncheck
-        run: go install golang.org/x/vuln/cmd/govulncheck@latest
-
       - name: Run govulncheck
-        run: govulncheck -format sarif ./... > govulncheck-results.sarif || true
-
-      - name: Upload govulncheck results
-        uses: github/codeql-action/upload-sarif@v4
-        if: always() && hashFiles('govulncheck-results.sarif') != ''
+        uses: golang/govulncheck-action@v1
         with:
-          sarif_file: govulncheck-results.sarif
+          go-version-input: ${{ env.GO_VERSION }}
+          go-package: ./...
 
-      - name: Run govulncheck (fail on vulnerabilities)
-        run: govulncheck ./...
+      - name: Run Gosec Security Scanner
+        uses: securego/gosec@master
+        with:
+          args: "-no-fail -fmt sarif -out gosec-results.sarif ./..."
+
+      - name: Upload Gosec SARIF results
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles('gosec-results.sarif') != ''
+        with:
+          sarif_file: gosec-results.sarif
 
   build:
     runs-on: ubuntu-latest
@@ -102,6 +104,11 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       # Docker/OCI image names must be lowercase
       - name: Set lowercase image name
         id: image-name
@@ -110,18 +117,14 @@ jobs:
           echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
           echo "repo=$(echo '${{ github.event.repository.name }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
-      - name: Build artifact
-        run: |
-          CGO_ENABLED=0 go build -ldflags="-s -w -X main.Version=${{ env.VERSION }} -X main.Commit=${{ github.sha }}" -o bin/app ./...
-
-      - name: Run tests
-        run: go test -v -race -coverprofile=coverage.out ./...
+      - name: Install dependencies & Build Go binary
+        run: make build-go
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: binary-artifact
-          path: bin/
+          path: converter-routine
           retention-days: 1
 
       - name: Set up QEMU
@@ -164,32 +167,29 @@ jobs:
           provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            VERSION=${{ env.VERSION }}
-            COMMIT=${{ github.sha }}
 
       # Using digest to reference the exact image that was just built
       - name: Scan Docker image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: '${{ steps.image-name.outputs.name }}@${{ steps.build-push.outputs.digest }}'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
+          image-ref: "${{ steps.image-name.outputs.name }}@${{ steps.build-push.outputs.digest }}"
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v4
         if: always() && hashFiles('trivy-results.sarif') != ''
         with:
-          sarif_file: 'trivy-results.sarif'
-          
+          sarif_file: "trivy-results.sarif"
+
       # Login to Docker Hub (required for Docker Scout)
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-          
+
       - name: Run Docker Scout
         uses: docker/scout-action@v1
         if: github.ref_type == 'tag'  # Only on releases
