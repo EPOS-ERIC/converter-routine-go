@@ -1,6 +1,6 @@
 module github.com/epos-eu/converter-routine
 
-go 1.25.5
+go 1.25.6
 
 require (
 	github.com/gin-gonic/gin v1.11.0
