@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/gin-gonic/gin v1.11.0
-	github.com/go-git/go-git/v5 v5.17.0
+	github.com/go-git/go-git/v5 v5.17.1
 	github.com/google/uuid v1.6.0
 	github.com/orandin/slog-gorm v1.4.0
 	github.com/robfig/cron/v3 v3.0.1
