@@ -9,7 +9,7 @@ stages:
 
 build:
   stage: build
-  image: golang:1.26.0
+  image: golang:1.26.2
   script:
     - apt update
     - apt install npm -y
