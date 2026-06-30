@@ -1,8 +1,8 @@
 # Using this image to ensure compatibility with the converter-service
 # can probably be better
-FROM alpine:3.23
+FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40
 
-RUN apk --no-cache add python3 ca-certificates
+RUN apk --no-cache add python3 ca-certificates && apk --no-cache upgrade
 
 LABEL authors="valeriovinciarelli"
 
